@@ -56,7 +56,7 @@ include = ["vlfm*"]
 [tool.ruff]
 # Enable pycodestyle (`E`), Pyflakes (`F`), and import sorting (`I`)
 select = ["E", "F", "I"]
-ignore = []
+ignore = ["E501"]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
 fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
@@ -98,6 +98,9 @@ target-version = "py39"
 
 [tool.ruff.per-file-ignores]
 "__init__.py" = ["F401"]
+"scripts/vlfm_jetracer_controller.py" = ["E402"]
+"scripts/vlfm_jetracer_controller_backup.py" = ["E402"]
+"vlfm/reality/run_jetracer_objnav_env.py" = ["E402"]
 
 [tool.ruff.mccabe]
 # Unlike Flake8, default to a complexity level of 10.

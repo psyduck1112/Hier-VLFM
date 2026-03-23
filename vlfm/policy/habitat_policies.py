@@ -61,7 +61,7 @@ def debug_observations_detail(observations: TensorDict, step_count: int = 0) -> 
             print(f"[DEBUG] {key}: {type(value)} - {value}")
     print("[DEBUG] =======================================\n")
 '''
-    
+
 
 # HM3D数据集中对象ID到名称的映射
 HM3D_ID_TO_NAME = ["chair", "bed", "potted plant", "toilet", "tv", "couch"]
@@ -93,6 +93,7 @@ MP3D_ID_TO_NAME = [
 
 class TorchActionIDs:
     """定义动作ID的张量表示"""
+
     STOP = torch.tensor([[0]], dtype=torch.long)
     MOVE_FORWARD = torch.tensor([[1]], dtype=torch.long)
     TURN_LEFT = torch.tensor([[2]], dtype=torch.long)
@@ -108,6 +109,7 @@ class HabitatMixin:
     (that is a subclass of BaseObjectNavPolicy) with the necessary methods to run in
     Habitat.
     """
+
     _stop_action: Tensor = TorchActionIDs.STOP
     _start_yaw: Union[float, None] = None  # must be set by _reset() method
     _observations_cache: Dict[str, Any] = {}
@@ -127,7 +129,7 @@ class HabitatMixin:
     ) -> None:
         """
         初始化HabitatMixin
-        
+
         Args:
             camera_height (float): 相机高度
             min_depth (float): 深度图像的最小深度值
@@ -151,12 +153,12 @@ class HabitatMixin:
     def from_config(cls, config: DictConfig, *args_unused: Any, **kwargs_unused: Any) -> "HabitatMixin":
         """
         从配置创建HabitatMixin实例
-        
+
         Args:
             config (DictConfig): 配置对象
             *args_unused (Any): 未使用的参数
             **kwargs_unused (Any): 未使用的关键字参数
-            
+
         Returns:
             HabitatMixin: 创建的HabitatMixin实例
         """
@@ -186,7 +188,9 @@ class HabitatMixin:
         return cls(**kwargs)
 
     def act(
-        self: Union["HabitatMixin", BaseObjectNavPolicy], # 向前引用，在定义HabitatMixin的内部方法时，类本身还没有完全定义完成
+        self: Union[
+            "HabitatMixin", BaseObjectNavPolicy
+        ],  # 向前引用，在定义HabitatMixin的内部方法时，类本身还没有完全定义完成
         observations: TensorDict,
         rnn_hidden_states: Any,
         prev_actions: Any,
@@ -195,7 +199,7 @@ class HabitatMixin:
     ) -> PolicyActionData:
         """
         执行动作
-        
+
         Args:
             self (Union["HabitatMixin", BaseObjectNavPolicy]): 当前实例
             observations (TensorDict): 观测数据
@@ -203,13 +207,13 @@ class HabitatMixin:
             prev_actions (Any): 上一个动作
             masks (Tensor): 掩码
             deterministic (bool): 是否确定性执行，默认为False
-            
+
         Returns:
             PolicyActionData: 动作数据
         """
         """Converts object ID to string name, returns action as PolicyActionData"""
         object_id: int = observations[ObjectGoalSensor.cls_uuid][0].item()
-        obs_dict = observations.to_tree() # 转换成树状字典
+        obs_dict = observations.to_tree()  # 转换成树状字典
         if self._dataset_type == "hm3d":
             obs_dict[ObjectGoalSensor.cls_uuid] = HM3D_ID_TO_NAME[object_id]
         elif self._dataset_type == "mp3d":
@@ -217,7 +221,9 @@ class HabitatMixin:
             self._non_coco_caption = " . ".join(MP3D_ID_TO_NAME).replace("|", " . ") + " ."
         else:
             raise ValueError(f"Dataset type {self._dataset_type} not recognized")
-        parent_cls: BaseObjectNavPolicy = super() # 用于调用父类的方法。在多重继承的情况下，它会根据方法解析顺序（MRO）找到合适的父类 type: ignore
+        parent_cls: BaseObjectNavPolicy = (
+            super()
+        )  # 用于调用父类的方法。在多重继承的情况下，它会根据方法解析顺序（MRO）找到合适的父类 type: ignore
         try:
             action, rnn_hidden_states = parent_cls.act(obs_dict, rnn_hidden_states, prev_actions, masks, deterministic)
         except StopIteration:
@@ -231,7 +237,7 @@ class HabitatMixin:
     def _initialize(self) -> Tensor:
         """
         初始化阶段动作：左转12次，获得360度视野
-        
+
         Returns:
             Tensor: 动作张量
         """
@@ -250,10 +256,10 @@ class HabitatMixin:
     def _get_policy_info(self, detections: ObjectDetections) -> Dict[str, Any]:
         """
         获取策略信息用于日志记录
-        
+
         Args:
             detections (ObjectDetections): 对象检测结果
-            
+
         Returns:
             Dict[str, Any]: 策略信息字典
         """
@@ -282,11 +288,11 @@ class HabitatMixin:
            observations (TensorDict): The observations from the current timestep.
         """
         # 断点1: 详细观察输入的observations结构
-        #debug_observations_detail(observations, getattr(self, '_debug_step_count', 0))
+        # debug_observations_detail(observations, getattr(self, '_debug_step_count', 0))
         # breakpoint()  # 取消注释以进入交互式调试器
 
         # 更新步数计数器
-        if not hasattr(self, '_debug_step_count'):
+        if not hasattr(self, "_debug_step_count"):
             self._debug_step_count = 0
         self._debug_step_count += 1
 
@@ -296,21 +302,21 @@ class HabitatMixin:
         # 断点2: 观察原始传感器数据
         # 传感器数据 将GPU张量转到CPU并转为numpy数组
         # observations["rgb"].shape = [batch_size, height, width, channels]
-        rgb = observations["rgb"][0].cpu().numpy() # 选择batch索引为0的传感器数据
+        rgb = observations["rgb"][0].cpu().numpy()  # 选择batch索引为0的传感器数据
         depth = observations["depth"][0].cpu().numpy()
         x, y = observations["gps"][0].cpu().numpy()
         camera_yaw = observations["compass"][0].cpu().item()
 
-        #print(f"[DEBUG] RGB shape: {rgb.shape}, dtype: {rgb.dtype}")
-        #print(f"[DEBUG] Depth shape: {depth.shape}, range: [{depth.min():.3f}, {depth.max():.3f}]")
-        #print(f"[DEBUG] GPS position: ({x:.3f}, {y:.3f})")
-        #print(f"[DEBUG] Camera yaw: {camera_yaw:.3f} radians")
+        # print(f"[DEBUG] RGB shape: {rgb.shape}, dtype: {rgb.dtype}")
+        # print(f"[DEBUG] Depth shape: {depth.shape}, range: [{depth.min():.3f}, {depth.max():.3f}]")
+        # print(f"[DEBUG] GPS position: ({x:.3f}, {y:.3f})")
+        # print(f"[DEBUG] Camera yaw: {camera_yaw:.3f} radians")
         # breakpoint()  # 取消注释以进入交互式调试器
 
         depth = filter_depth(depth.reshape(depth.shape[:2]), blur_type=None)
 
         # 断点3: 观察处理后的深度数据
-        #print(f"[DEBUG] Filtered depth shape: {depth.shape}, range: [{depth.min():.3f}, {depth.max():.3f}]")
+        # print(f"[DEBUG] Filtered depth shape: {depth.shape}, range: [{depth.min():.3f}, {depth.max():.3f}]")
 
         # Habitat GPS makes west negative, so flip y  Habitat坐标系中西方向为负，需要翻转
         camera_position = np.array([x, -y, self._camera_height])
@@ -318,15 +324,15 @@ class HabitatMixin:
         tf_camera_to_episodic = xyz_yaw_to_tf_matrix(camera_position, camera_yaw)
 
         # 断点4: 观察坐标变换
-        #print(f"[DEBUG] Camera position: {camera_position}")
-        #print(f"[DEBUG] Robot XY: {robot_xy}")
-        #print(f"[DEBUG] Transform matrix shape: {tf_camera_to_episodic.shape}")
+        # print(f"[DEBUG] Camera position: {camera_position}")
+        # print(f"[DEBUG] Robot XY: {robot_xy}")
+        # print(f"[DEBUG] Transform matrix shape: {tf_camera_to_episodic.shape}")
         # breakpoint()  # 取消注释以进入交互式调试器
 
         self._obstacle_map: ObstacleMap
         if self._compute_frontiers:
-            print(f"[DEBUG] Computing frontiers using obstacle map")
-            self._obstacle_map.update_map( # 更新障碍物地图
+            print("[DEBUG] Computing frontiers using obstacle map")
+            self._obstacle_map.update_map(  # 更新障碍物地图
                 depth,
                 tf_camera_to_episodic,
                 self._min_depth,
@@ -336,27 +342,26 @@ class HabitatMixin:
                 self._camera_fov,
             )
             frontiers = self._obstacle_map.frontiers
-            #print(f"[DEBUG] Computed frontiers shape: {frontiers.shape}")
+            # print(f"[DEBUG] Computed frontiers shape: {frontiers.shape}")
             #######################
             # 直接打印掩码
-            step_count = getattr(self, '_debug_step_count', 0)
-            #print(f"[Step {step_count}] Navigable Map:")
-            #print(self._obstacle_map._navigable_map)
-            #print(f"[Step {step_count}] Explored Area:")
-            #print(self._obstacle_map.explored_area)
+            # print(f"[Step {step_count}] Navigable Map:")
+            # print(self._obstacle_map._navigable_map)
+            # print(f"[Step {step_count}] Explored Area:")
+            # print(self._obstacle_map.explored_area)
             # 记录智能体的移动轨迹
             self._obstacle_map.update_agent_traj(robot_xy, camera_yaw)
-        else: # 如果不计算前沿，尝试从传感器直接获取或设为空数组
-            #print(f"[DEBUG] Using frontier sensor from observations")
+        else:  # 如果不计算前沿，尝试从传感器直接获取或设为空数组
+            # print(f"[DEBUG] Using frontier sensor from observations")
             if "frontier_sensor" in observations:
                 frontiers = observations["frontier_sensor"][0].cpu().numpy()
                 # print(f"[DEBUG] Frontier sensor shape: {frontiers.shape}")
             else:
                 frontiers = np.array([])
-                #print(f"[DEBUG] No frontier sensor, using empty array")
+                # print(f"[DEBUG] No frontier sensor, using empty array")
 
         # 断点5: 观察最终缓存的数据
-       # print(f"[DEBUG] Final frontiers shape: {frontiers.shape}")
+        # print(f"[DEBUG] Final frontiers shape: {frontiers.shape}")
         # breakpoint()  # 取消注释以进入交互式调试器
 
         self._observations_cache = {
@@ -394,14 +399,14 @@ class OracleFBEPolicy(HabitatMixin, BaseObjectNavPolicy):
     """
     Oracle FBE策略类，继承自HabitatMixin和BaseObjectNavPolicy
     """
-    
+
     def _explore(self, observations: TensorDict) -> Tensor:
         """
         探索函数，获取探索动作
-        
+
         Args:
             observations (TensorDict): 观测数据
-            
+
         Returns:
             Tensor: 探索动作
         """
@@ -415,7 +420,7 @@ class SuperOracleFBEPolicy(HabitatMixin, BaseObjectNavPolicy):
     """
     Super Oracle FBE策略类，继承自HabitatMixin和BaseObjectNavPolicy
     """
-    
+
     def act(
         self,
         observations: TensorDict,
@@ -425,13 +430,13 @@ class SuperOracleFBEPolicy(HabitatMixin, BaseObjectNavPolicy):
     ) -> PolicyActionData:
         """
         执行动作
-        
+
         Args:
             observations (TensorDict): 观测数据
             rnn_hidden_states (Any): RNN隐藏状态（未使用）
             *args (Any): 其他位置参数
             **kwargs (Any): 其他关键字参数
-            
+
         Returns:
             PolicyActionData: 动作数据
         """
@@ -447,6 +452,7 @@ class HabitatITMPolicy(HabitatMixin, ITMPolicy):
     """
     Habitat ITM策略类，继承自HabitatMixin和ITMPolicy
     """
+
     pass
 
 
@@ -455,6 +461,7 @@ class HabitatITMPolicyV2(HabitatMixin, ITMPolicyV2):
     """
     Habitat ITM策略V2类，继承自HabitatMixin和ITMPolicyV2
     """
+
     pass
 
 
@@ -463,16 +470,16 @@ class HabitatITMPolicyV3(HabitatMixin, ITMPolicyV3):
     """
     Habitat ITM策略V3类，继承自HabitatMixin和ITMPolicyV3
     """
+
     pass
 
 
-
-
-@dataclass 
-class VLFMPolicyConfig(VLFMConfig, PolicyConfig): 
+@dataclass
+class VLFMPolicyConfig(VLFMConfig, PolicyConfig):
     """
     VLFM策略配置类，继承自VLFMConfig和PolicyConfig
     """
+
     pass
 
 
