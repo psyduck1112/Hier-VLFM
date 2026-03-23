@@ -10,35 +10,38 @@ VLFM JetRacer控制器 - 主机端
 """
 
 # ===== 导入标准库模块 =====
-import rospy  # ROS的Python API，用于创建节点、订阅发布话题
-import numpy as np  # NumPy数值计算库，用于数组和矩阵操作
-import torch  # PyTorch深度学习框架，用于张量运算和神经网络
 import math  # 数学函数库，提供三角函数、对数等数学运算
-from typing import Dict, Any, Optional  # 类型注解，Dict字典类型，Any任意类型，Optional可选类型
-import cv2  # OpenCV计算机视觉库，用于图像处理
-from cv_bridge import CvBridge  # ROS与OpenCV之间的图像格式转换工具
-
-# ===== 导入ROS消息类型 =====
-from sensor_msgs.msg import Image, Imu  # ROS传感器消息：Image图像消息，Imu惯导消息
-from nav_msgs.msg import Odometry  # ROS导航消息：里程计消息，包含位置和速度
-from geometry_msgs.msg import Twist  # ROS几何消息：速度指令，包含线速度和角速度
+import os
 
 # ===== 添加模块路径 =====
 import sys
-import os
+from typing import Any, Dict, Optional  # 类型注解，Dict字典类型，Any任意类型，Optional可选类型
+
+import cv2  # OpenCV计算机视觉库，用于图像处理
+import numpy as np  # NumPy数值计算库，用于数组和矩阵操作
+import rospy  # ROS的Python API，用于创建节点、订阅发布话题
+import torch  # PyTorch深度学习框架，用于张量运算和神经网络
+from cv_bridge import CvBridge  # ROS与OpenCV之间的图像格式转换工具
+from geometry_msgs.msg import Twist  # ROS几何消息：速度指令，包含线速度和角速度
+from nav_msgs.msg import Odometry  # ROS导航消息：里程计消息，包含位置和速度
+
+# ===== 导入ROS消息类型 =====
+from sensor_msgs.msg import Image, Imu  # ROS传感器消息：Image图像消息，Imu惯导消息
 
 # 添加vlfm项目根目录到Python路径，确保能够导入vlfm模块
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # ===== 导入VLFM策略模块 =====
-from vlfm.policy.jetracer_ros_policy import JetRacerROSITMPolicyV2  # VLFM的JetRacer ROS策略V2版本
+# VLFM可视化工具
+from omegaconf import OmegaConf  # 配置管理库：OmegaConf配置工厂
+
 from vlfm.mapping.obstacle_map import ObstacleMap  # VLFM障碍物地图构建模块
+from vlfm.policy.jetracer_ros_policy import JetRacerROSITMPolicyV2  # VLFM的JetRacer ROS策略V2版本
 from vlfm.utils.geometry_utils import xyz_yaw_to_tf_matrix  # VLFM几何工具：坐标变换矩阵计算
 from vlfm.utils.jetracer_visualization import (
-    VLFMVisualizer,
     VLFMVideoRecorder,
-)  # VLFM可视化工具
-from omegaconf import OmegaConf  # 配置管理库：OmegaConf配置工厂
+    VLFMVisualizer,
+)
 
 
 class VLFMJetRacerController:
@@ -416,7 +419,6 @@ class VLFMJetRacerController:
         robot_heading = self._current_odom["yaw"]
 
         try:
-
             # 更新障碍物地图
             if self.obstacle_map is not None:
                 tf_matrix = xyz_yaw_to_tf_matrix(np.array([robot_xy[0], robot_xy[1], 0.0]), robot_heading)

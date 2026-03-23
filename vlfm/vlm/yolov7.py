@@ -116,8 +116,10 @@ class YOLOv7Client:
         self.url = f"http://localhost:{port}/yolov7"
 
     def predict(self, image_numpy: np.ndarray) -> ObjectDetections:
-        response = send_request(self.url, image=image_numpy) # 向服务器发送请求，将图像数据转为参数传递
-        detections = ObjectDetections.from_json(response, image_source=image_numpy) # image_source参数保留原始图像数据，可能用于可视化或其他处理
+        response = send_request(self.url, image=image_numpy)  # 向服务器发送请求，将图像数据转为参数传递
+        detections = ObjectDetections.from_json(
+            response, image_source=image_numpy
+        )  # image_source参数保留原始图像数据，可能用于可视化或其他处理
 
         return detections
 

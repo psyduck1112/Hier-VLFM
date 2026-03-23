@@ -31,7 +31,7 @@ def rotate_image(
 
 def place_img_in_img(img1: np.ndarray, img2: np.ndarray, row: int, col: int) -> np.ndarray:
     """把一张小图 img2 放到大图 img1 中，以 (row, col) 作为小图中心对齐位置，若越界则自动裁剪。
-    
+
     Place img2 in img1 such that img2's center is at the specified coordinates (xy)
     in img1.
 
@@ -262,12 +262,12 @@ def pixel_value_within_radius(
     )
     # 使用掩码提取裁剪图像中圆形区域内的像素值
     overlap_values = cropped_image[circle_mask > 0]
-   
+
     # Filter out any values that are 0 (i.e. pixels that weren't seen yet)
     # 过滤掉值为0的像素（即尚未观测到的像素）
     overlap_values = overlap_values[overlap_values > 0]
     if overlap_values.size == 0:
-        return -1 # 如果没有有效像素值，返回-1
+        return -1  # 如果没有有效像素值，返回-1
     # 根据指定的归约方法（mean、max或median）计算并返回相应的统计值。
     elif reduction == "mean":
         return np.mean(overlap_values)  # type: ignore

@@ -9,11 +9,12 @@ from gym import spaces
 from gym.spaces import Dict as SpaceDict
 from gym.spaces import Discrete
 from torch import Tensor
-'''
+
+"""
 机器人需要从当前位置导航到目标位置
 ├── 输入：深度图像 + 目标相对于机器人的位置(rho, theta)
 └── 输出：应该执行的动作（前进、左转、右转等）
-'''
+"""
 
 habitat_version = ""
 
@@ -27,7 +28,7 @@ try:
     if habitat_version == "0.1.5":
         print("Using habitat 0.1.5; assuming SemExp code is being used")
 
-        class PointNavResNetTensorOutputPolicy(PointNavResNetPolicy): # 
+        class PointNavResNetTensorOutputPolicy(PointNavResNetPolicy):  #
             def act(self, *args: Any, **kwargs: Any) -> Tuple[Tensor, Tensor]:
                 value, action, action_log_probs, rnn_hidden_states = super().act(*args, **kwargs)
                 return action, rnn_hidden_states
@@ -57,20 +58,20 @@ except ModuleNotFoundError:
 
 def discrete_action_to_continuous(action: Union[int, Tensor]) -> Tuple[float, float]:
     """将Habitat的离散动作转换为JetRacer的连续速度控制
-    
+
     JetRacer控制说明：
     - linear: 驱动轮线速度（提供动力，小车才会移动）
     - angular: 前轮转向角度（仅控制方向，不提供动力）
-    
+
     Habitat离散动作映射为JetRacer控制：
     - STOP = 0: 停止 (linear=0, angular=0)
-    - FORWARD = 1: 直行 (linear=正值, angular=0)  
+    - FORWARD = 1: 直行 (linear=正值, angular=0)
     - TURN_LEFT = 2: 前进左转 (linear=正值, angular=正值)
     - TURN_RIGHT = 3: 前进右转 (linear=正值, angular=负值)
-    
+
     Args:
         action: Habitat的离散动作值 (0-3)
-        
+
     Returns:
         Tuple[float, float]: (linear_vel, angular_vel) JetRacer的速度控制
     """
@@ -81,11 +82,11 @@ def discrete_action_to_continuous(action: Union[int, Tensor]) -> Tuple[float, fl
         else:
             # 如果action有多个元素，取第一个元素（通常是batch维度）
             action = action.flatten()[0].item()
-    
+
     # JetRacer动作参数
-    FORWARD_SPEED = 0.4   # 前进线速度（调大速度）
-    TURN_ANGLE = 0.4      # 转向角度
-    
+    FORWARD_SPEED = 0.4  # 前进线速度（调大速度）
+    TURN_ANGLE = 0.4  # 转向角度
+
     if action == 0:  # STOP - 完全停止
         return 0.0, 0.0
     elif action == 1:  # FORWARD - 直线前进
@@ -109,19 +110,19 @@ class WrappedPointNavResNetPolicy:
 
     def __init__(
         self,
-        ckpt_path: str, # 预训练模型检查点路径
-        device: Union[str, torch.device] = "cuda", # 计算设备
+        ckpt_path: str,  # 预训练模型检查点路径
+        device: Union[str, torch.device] = "cuda",  # 计算设备
     ):
         if isinstance(device, str):
-            device = torch.device(device) # 将字符串设备名称转换为torch.device对象
+            device = torch.device(device)  # 将字符串设备名称转换为torch.device对象
             # torch.device 用于指定张量计算和存储的设备。它是一个对象，表示设备类型和设备序号
         self.policy = load_pointnav_policy(ckpt_path)
         # 将模型移动到指定设备
         self.policy.to(device)
         # 判断策略是连续的还是离散的动作
-        self.discrete_actions = not hasattr(self.policy.action_distribution, "mu_maybe_std") 
+        self.discrete_actions = not hasattr(self.policy.action_distribution, "mu_maybe_std")
         # hasattr(obj, name): 检查对象 obj 是否具有名为 name 的属性
-        
+
         self.pointnav_test_recurrent_hidden_states = torch.zeros(
             1,  # The number of environments.
             self.policy.net.num_recurrent_layers,
@@ -144,11 +145,11 @@ class WrappedPointNavResNetPolicy:
 
     def act(
         self,
-        observations: Union["TensorDict", Dict], # 输入观察
+        observations: Union["TensorDict", Dict],  # 输入观察
         masks: Tensor,
-        deterministic: bool = False, # 控制选择方式，确定动作还是采样
+        deterministic: bool = False,  # 控制选择方式，确定动作还是采样
     ) -> Tensor:
-        """ 根据由深度信息得到的角度预测动作
+        """根据由深度信息得到的角度预测动作
         Infers action to take towards the given (rho, theta) based on depth vision.
 
         Args:
@@ -166,14 +167,14 @@ class WrappedPointNavResNetPolicy:
             Tensor: A tensor denoting the action to take.
         """
         # Convert numpy arrays to torch tensors for each dict value
-        observations = move_obs_to_device(observations, self.device) # 将 numpy → torch，并放到 device 上：
+        observations = move_obs_to_device(observations, self.device)  # 将 numpy → torch，并放到 device 上：
         # 调用pointnav_policy.act
         pointnav_action, rnn_hidden_states = self.policy.act(
-            observations, # 观测数据
-            self.pointnav_test_recurrent_hidden_states,  # 历史hidden states 
+            observations,  # 观测数据
+            self.pointnav_test_recurrent_hidden_states,  # 历史hidden states
             self.pointnav_prev_actions,  # 前一步动作
-            masks, # 掩码
-            deterministic=deterministic, # 控制选择方式
+            masks,  # 掩码
+            deterministic=deterministic,  # 控制选择方式
         )
         # 更新内部状态
         self.pointnav_prev_actions = pointnav_action.clone()
@@ -187,18 +188,18 @@ class WrappedPointNavResNetPolicy:
         deterministic: bool = False,
     ) -> Tuple[float, float]:
         """获取连续速度控制命令，用于JetRacer控制
-        
+
         Args:
             observations: 观测数据
             masks: 掩码张量
             deterministic: 是否确定性选择动作
-            
+
         Returns:
             Tuple[float, float]: (linear_vel, angular_vel) 适用于JetRacer的速度控制
         """
         # 获取原始动作
         pointnav_action = self.act(observations, masks, deterministic)
-        
+
         # 如果是离散动作，转换为连续速度
         if self.discrete_actions:
             linear_vel, angular_vel = discrete_action_to_continuous(pointnav_action)
@@ -222,7 +223,7 @@ class WrappedPointNavResNetPolicy:
 
 
 def load_pointnav_policy(file_path: str):
-    """ 从pth文件中加载PointNavResNetPolicy
+    """从pth文件中加载PointNavResNetPolicy
     返回：已经加载好权重的策略
     Loads a PointNavResNetPolicy policy from a .pth file.
 
@@ -234,12 +235,12 @@ def load_pointnav_policy(file_path: str):
     # 先检查是否是连续动作
     ckpt_dict = torch.load(file_path, map_location="cpu")
     has_continuous_action = "action_distribution.mu_maybe_std.weight" in ckpt_dict
-    
-    if HABITAT_BASELINES_AVAILABLE: # 如果habitat可用，优先使用habitat版本（无论离散还是连续）
+
+    if HABITAT_BASELINES_AVAILABLE:  # 如果habitat可用，优先使用habitat版本（无论离散还是连续）
         # 使用全局定义的 PointNavResNetTensorOutputPolicy 类
         PolicyClass = PointNavResNetTensorOutputPolicy
-        
-        obs_space = SpaceDict(  # 定义观察空间和动作空间 
+
+        obs_space = SpaceDict(  # 定义观察空间和动作空间
             {
                 "depth": spaces.Box(low=0.0, high=1.0, shape=(224, 224, 1), dtype=np.float32),
                 # 深度图像，是一个形状为 (224, 224, 1) 的浮点型张量，值域在 [0.0, 1.0] 之间
@@ -253,22 +254,22 @@ def load_pointnav_policy(file_path: str):
                 # 表示相对于代理当前位置的距离 (rho) 和角度 (theta)
             }
         )
-        
+
         # 动作空间已经在函数开头根据checkpoint确定
         if has_continuous_action:
-            action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32) # 连续动作 [angular, linear]
+            action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)  # 连续动作 [angular, linear]
         else:
-            action_space = Discrete(4) # 离散动作
-            
-        if habitat_version == "0.1.5": # 针对0.1.5版本特殊处理
+            action_space = Discrete(4)  # 离散动作
+
+        if habitat_version == "0.1.5":  # 针对0.1.5版本特殊处理
             pointnav_policy = PolicyClass(
-                obs_space,  # 输入观测定义  
-                action_space, # 输出动作空间
-                hidden_size=512, # RNN 隐藏层大小
-                num_recurrent_layers=2, # LSTM堆叠两层
-                rnn_type="LSTM", # 循环网络类型
-                resnet_baseplanes=32, # 
-                backbone="resnet18", # 特征提取器
+                obs_space,  # 输入观测定义
+                action_space,  # 输出动作空间
+                hidden_size=512,  # RNN 隐藏层大小
+                num_recurrent_layers=2,  # LSTM堆叠两层
+                rnn_type="LSTM",  # 循环网络类型
+                resnet_baseplanes=32,  #
+                backbone="resnet18",  # 特征提取器
                 normalize_visual_inputs=False,
                 obs_transform=None,
             )
@@ -311,11 +312,12 @@ def load_pointnav_policy(file_path: str):
         from vlfm.policy.utils.non_habitat_policy.nh_pointnav_policy import (
             PointNavResNetPolicy as NonHabitatPointNavResNetPolicy,
         )
-        
+
         class LocalPointNavResNetTensorOutputPolicy(NonHabitatPointNavResNetPolicy):
             """Non-habitat wrapper that outputs tensors."""
+
             pass
-        
+
         pointnav_policy = LocalPointNavResNetTensorOutputPolicy()
         current_state_dict = pointnav_policy.state_dict()
         # Let old checkpoints work with new code
@@ -337,7 +339,7 @@ def move_obs_to_device(
     device: torch.device,
     unsqueeze: bool = False,
 ) -> Dict[str, Tensor]:
-    """ 将观察数据移动到给定的设备，将numpy数组转换成torch张量
+    """将观察数据移动到给定的设备，将numpy数组转换成torch张量
     Moves observations to the given device, converts numpy arrays to torch tensors.
 
     Args:
@@ -361,18 +363,20 @@ def move_obs_to_device(
 if __name__ == "__main__":
     import argparse  # 使用 argparse 解析命令行参数
 
-    parser = argparse.ArgumentParser("Load a checkpoint file for PointNavResNetPolicy") # 
+    parser = argparse.ArgumentParser("Load a checkpoint file for PointNavResNetPolicy")  #
     parser.add_argument("ckpt_path", help="path to checkpoint file")
     # ckpt_path：表示一个“checkpoint 文件的路径”，就是模型保存的文件路径。
     # help="path to checkpoint file"：是对这个参数的解释，会出现在 --help 的帮助信息里。
-    args = parser.parse_args() # 开始解析命令行输入，并把结果存到 args 里面
+    args = parser.parse_args()  # 开始解析命令行输入，并把结果存到 args 里面
 
-    policy = load_pointnav_policy(args.ckpt_path) # 加载预训练的pointNav模型
+    policy = load_pointnav_policy(args.ckpt_path)  # 加载预训练的pointNav模型
     print("Loaded model from checkpoint successfully!")
-    mask = torch.zeros(1, 1, device=torch.device("cuda"), dtype=torch.bool)  #创建一个形状为 (1, 1) 的布尔型张量，用于表示 episode 的步骤掩码
-    
+    mask = torch.zeros(
+        1, 1, device=torch.device("cuda"), dtype=torch.bool
+    )  # 创建一个形状为 (1, 1) 的布尔型张量，用于表示 episode 的步骤掩码
+
     observations = {
-        "depth": torch.zeros(1, 224, 224, 1, device=torch.device("cuda")),  
+        "depth": torch.zeros(1, 224, 224, 1, device=torch.device("cuda")),
         "pointgoal_with_gps_compass": torch.zeros(1, 2, device=torch.device("cuda")),
     }
 
@@ -383,5 +387,5 @@ if __name__ == "__main__":
         torch.zeros(1, 4, 512, device=torch.device("cuda"), dtype=torch.float32),
         torch.zeros(1, 1, device=torch.device("cuda"), dtype=torch.long),
         mask,
-    ) # 调用策略的 act 方法执行一次推理
+    )  # 调用策略的 act 方法执行一次推理
     print("Forward pass successful!")

@@ -62,7 +62,7 @@ class RealityMixin:
         policy_config: VLFMConfig = config.policy
         # 从配置中提取关键字参数
         kwargs = {k: policy_config[k] for k in VLFMConfig.kwaarg_names}  # type: ignore
-        
+
         # 使用提取的参数创建类实例
         return cls(**kwargs)
 
@@ -87,17 +87,17 @@ class RealityMixin:
             # 如果初始化完成,使用正常的导航动作
             action_dict = {
                 "angular": action[0][0].item(),  # 角速度(弧度/秒)
-                "linear": action[0][1].item(),   # 线性速度(米/秒)
-                "arm_yaw": -1,                   # 机械臂偏航角(-1表示不移动)
-                "info": self._policy_info,       # 策略信息
+                "linear": action[0][1].item(),  # 线性速度(米/秒)
+                "arm_yaw": -1,  # 机械臂偏航角(-1表示不移动)
+                "info": self._policy_info,  # 策略信息
             }
         else:
             # 如果还在初始化阶段,只移动机械臂,不移动底盘
             action_dict = {
-                "angular": 0,                    # 底盘角速度为0
-                "linear": 0,                     # 底盘线性速度为0
+                "angular": 0,  # 底盘角速度为0
+                "linear": 0,  # 底盘线性速度为0
                 "arm_yaw": action[0][0].item(),  # 使用动作的第一个值作为机械臂偏航角
-                "info": self._policy_info,       # 策略信息
+                "info": self._policy_info,  # 策略信息
             }
 
         # 如果策略信息中包含rho_theta(极坐标),则添加到动作字典中
@@ -147,27 +147,27 @@ class RealityMixin:
             depth, tf, min_depth, max_depth, fx, fy, topdown_fov = obs_map_data
             # 更新障碍物地图,但不进行探索
             self._obstacle_map.update_map(
-                depth,           # 深度图像
-                tf,              # 变换矩阵
-                min_depth,       # 最小深度
-                max_depth,       # 最大深度
-                fx,              # X方向焦距
-                fy,              # Y方向焦距
-                topdown_fov,     # 俯视视野
-                explore=False,   # 不进行探索
+                depth,  # 深度图像
+                tf,  # 变换矩阵
+                min_depth,  # 最小深度
+                max_depth,  # 最大深度
+                fx,  # X方向焦距
+                fy,  # Y方向焦距
+                topdown_fov,  # 俯视视野
+                explore=False,  # 不进行探索
             )
 
         # 处理最后一个障碍物地图深度数据
         _, tf, min_depth, max_depth, fx, fy, topdown_fov = observations["obstacle_map_depths"][-1]
         self._obstacle_map.update_map(
-            None,                    # 不使用深度数据
-            tf,                      # 变换矩阵
-            min_depth,               # 最小深度
-            max_depth,               # 最大深度
-            fx,                      # X方向焦距
-            fy,                      # Y方向焦距
-            topdown_fov,             # 俯视视野
-            explore=True,            # 进行探索
+            None,  # 不使用深度数据
+            tf,  # 变换矩阵
+            min_depth,  # 最小深度
+            max_depth,  # 最大深度
+            fx,  # X方向焦距
+            fy,  # Y方向焦距
+            topdown_fov,  # 俯视视野
+            explore=True,  # 进行探索
             update_obstacles=False,  # 不更新障碍物
         )
 
@@ -183,12 +183,12 @@ class RealityMixin:
 
         # 缓存观测数据
         self._observations_cache = {
-            "frontier_sensor": frontiers,                            # 前沿传感器数据
-            "nav_depth": nav_depth,                                 # 导航深度(用于PointNav)
-            "robot_xy": observations["robot_xy"],                   # 机器人XY坐标(2维numpy数组)
-            "robot_heading": observations["robot_heading"],         # 机器人朝向(弧度浮点数)
-            "object_map_rgbd": observations["object_map_rgbd"],     # 对象地图RGBD数据
-            "value_map_rgbd": observations["value_map_rgbd"],       # 价值地图RGBD数据
+            "frontier_sensor": frontiers,  # 前沿传感器数据
+            "nav_depth": nav_depth,  # 导航深度(用于PointNav)
+            "robot_xy": observations["robot_xy"],  # 机器人XY坐标(2维numpy数组)
+            "robot_heading": observations["robot_heading"],  # 机器人朝向(弧度浮点数)
+            "object_map_rgbd": observations["object_map_rgbd"],  # 对象地图RGBD数据
+            "value_map_rgbd": observations["value_map_rgbd"],  # 价值地图RGBD数据
         }
 
     def _infer_depth(self, rgb: np.ndarray, min_depth: float, max_depth: float) -> np.ndarray:
@@ -216,13 +216,15 @@ class RealityMixin:
 @dataclass
 class RealityConfig(DictConfig):
     """实机运行配置类"""
+
     policy: VLFMConfig = VLFMConfig()  # VLFM策略配置
 
 
 class RealityITMPolicyV2(RealityMixin, ITMPolicyV2):
     """实机ITM策略版本2
-    
+
     这个类通过多重继承组合了RealityMixin(提供实机运行能力)和ITMPolicyV2(提供ITM策略逻辑)。
     它是VLFM系统在Spot机器人上运行的具体策略实现。
     """
+
     pass

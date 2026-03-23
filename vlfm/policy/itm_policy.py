@@ -14,8 +14,8 @@ from vlfm.policy.base_objectnav_policy import BaseObjectNavPolicy
 from vlfm.policy.utils.acyclic_enforcer import AcyclicEnforcer
 from vlfm.utils.geometry_utils import closest_point_within_threshold
 from vlfm.vlm.blip2itm import BLIP2ITMClient
-from vlfm.vlm.ultralytics_yoloworld import UltralyticsYOLOWorldITMClient
 from vlfm.vlm.detections import ObjectDetections
+from vlfm.vlm.ultralytics_yoloworld import UltralyticsYOLOWorldITMClient
 
 try:
     from habitat_baselines.common.tensor_dict import TensorDict
@@ -29,10 +29,10 @@ class BaseITMPolicy(BaseObjectNavPolicy):
     _target_object_color: Tuple[int, int, int] = (0, 255, 0)
     _selected__frontier_color: Tuple[int, int, int] = (0, 255, 255)
     _frontier_color: Tuple[int, int, int] = (0, 0, 255)
-    _circle_marker_thickness: int = 2 
+    _circle_marker_thickness: int = 2
     _circle_marker_radius: int = 5
-    _last_value: float = float("-inf") # 上一个前沿的价值
-    _last_frontier: np.ndarray = np.zeros(2) # 上一个前沿点
+    _last_value: float = float("-inf")  # 上一个前沿的价值
+    _last_frontier: np.ndarray = np.zeros(2)  # 上一个前沿点
 
     @staticmethod  # 静态方法，不能访问任何类变量和实例变量
     # 用于可视化时将多通道数组压缩为单通道，取最大值
@@ -41,28 +41,30 @@ class BaseITMPolicy(BaseObjectNavPolicy):
 
     def __init__(
         self,
-        text_prompt: str, # 提示语
-        discrete_actions: bool = False, # 是否离散动作
-        use_max_confidence: bool = True, # 是否使用最大置信度
+        text_prompt: str,  # 提示语
+        discrete_actions: bool = False,  # 是否离散动作
+        use_max_confidence: bool = True,  # 是否使用最大置信度
         sync_explored_areas: bool = False,
-        use_ultralytics_yoloworld: bool = True, # 是否使用Ultralytics YOLO-World
+        use_ultralytics_yoloworld: bool = True,  # 是否使用Ultralytics YOLO-World
         *args: Any,
         **kwargs: Any,
     ):
-        super().__init__(*args, **kwargs) 
+        super().__init__(*args, **kwargs)
         # 选择使用Ultralytics YOLO-World或BLIP2进行图像文本匹配
         if use_ultralytics_yoloworld:
-            self._itm = UltralyticsYOLOWorldITMClient(port=int(os.environ.get("ULTRALYTICS_YOLOWORLD_ITM_PORT", "12187")))
+            self._itm = UltralyticsYOLOWorldITMClient(
+                port=int(os.environ.get("ULTRALYTICS_YOLOWORLD_ITM_PORT", "12187"))
+            )
         else:
             self._itm = BLIP2ITMClient(port=int(os.environ.get("BLIP2ITM_PORT", "12182")))
         self._text_prompt = text_prompt
         self._value_map: ValueMap = ValueMap(
-            value_channels=len(text_prompt.split(PROMPT_SEPARATOR)), # 提示语确定价值通道
+            value_channels=len(text_prompt.split(PROMPT_SEPARATOR)),  # 提示语确定价值通道
             size=1500,  # 统一地图尺寸为1500，与ObstacleMap一致
-            use_max_confidence=use_max_confidence, # 是否使用最大置信度
+            use_max_confidence=use_max_confidence,  # 是否使用最大置信度
             obstacle_map=self._obstacle_map if sync_explored_areas else None,
-        ) # 创建value_map实例
-        self._acyclic_enforcer = AcyclicEnforcer() # 创建防循环实例
+        )  # 创建value_map实例
+        self._acyclic_enforcer = AcyclicEnforcer()  # 创建防循环实例
 
     def _reset(self) -> None:
         super()._reset()
@@ -72,11 +74,11 @@ class BaseITMPolicy(BaseObjectNavPolicy):
         self._last_frontier = np.zeros(2)
 
     def _explore(self, observations: Union[Dict[str, Tensor], "TensorDict"]) -> Tensor:
-        '''
+        """
         选择最佳前沿点并生成导航动作
-        '''
-        frontiers = self._observations_cache["frontier_sensor"] # 观察缓存获取前沿点
-        
+        """
+        frontiers = self._observations_cache["frontier_sensor"]  # 观察缓存获取前沿点
+
         # 注释掉详细的frontier调试信息
         # print(f"🔍 Frontier调试:")
         # print(f"   - frontiers类型: {type(frontiers)}")
@@ -84,17 +86,17 @@ class BaseITMPolicy(BaseObjectNavPolicy):
         # print(f"   - frontiers内容: {frontiers}")
         # print(f"   - 是否等于zeros: {np.array_equal(frontiers, np.zeros((1, 2)))}")
         # print(f"   - 长度: {len(frontiers)}")
-        
-        if np.array_equal(frontiers, np.zeros((1, 2))) or len(frontiers) == 0: # 如果没有前沿点
+
+        if np.array_equal(frontiers, np.zeros((1, 2))) or len(frontiers) == 0:  # 如果没有前沿点
             print("❌ No frontiers found during exploration, stopping.")
             self._policy_info["stop_reason"] = "exploration_complete"  # 标记停止原因：探索完成
-            return self._stop_action # 停止
-        best_frontier, best_value = self._get_best_frontier(observations, frontiers) # 获取最佳前沿点
-        os.environ["DEBUG_INFO"] = f"Best value: {best_value*100:.2f}%" # 设置调试信息
+            return self._stop_action  # 停止
+        best_frontier, best_value = self._get_best_frontier(observations, frontiers)  # 获取最佳前沿点
+        os.environ["DEBUG_INFO"] = f"Best value: {best_value*100:.2f}%"  # 设置调试信息
         print(f"Best value: {best_value*100:.2f}%")
-        pointnav_action = self._pointnav(best_frontier, stop=False) # 调用base_objbav中的_pointnav方法获取动作
+        pointnav_action = self._pointnav(best_frontier, stop=False)  # 调用base_objbav中的_pointnav方法获取动作
 
-        return pointnav_action # 返回动作
+        return pointnav_action  # 返回动作
 
     def _get_best_frontier(
         self,
@@ -114,70 +116,72 @@ class BaseITMPolicy(BaseObjectNavPolicy):
             Tuple[np.ndarray, float]: The best frontier and its value.
         """
         # The points and values will be sorted in descending order
-        sorted_pts, sorted_values = self._sort_frontiers_by_value(observations, frontiers) # 根据前沿点价值排序
+        sorted_pts, sorted_values = self._sort_frontiers_by_value(observations, frontiers)  # 根据前沿点价值排序
         robot_xy = self._observations_cache["robot_xy"]
         best_frontier_idx = None
-        top_two_values = tuple(sorted_values[:2]) # 前沿点价值前2
+        top_two_values = tuple(sorted_values[:2])  # 前沿点价值前2
 
-        os.environ["DEBUG_INFO"] = "" # 清空调试信息
+        os.environ["DEBUG_INFO"] = ""  # 清空调试信息
         # If there is a last point pursued, then we consider sticking to pursuing it
         # if it is still in the list of frontiers and its current value is not much
         # worse than self._last_value.
-        if not np.array_equal(self._last_frontier, np.zeros(2)): # 如果上一个前沿点不为零
+        if not np.array_equal(self._last_frontier, np.zeros(2)):  # 如果上一个前沿点不为零
             curr_index = None  # 初始化当前索引为None，用于存储上一个前沿点在当前前沿点列表中的位置
 
             # 查找上一个前沿点在当前前沿点列表中的位置
             for idx, p in enumerate(sorted_pts):  # 遍历前沿点
-                if np.array_equal(p, self._last_frontier): # 如果前沿点等于上一个前沿点 
+                if np.array_equal(p, self._last_frontier):  # 如果前沿点等于上一个前沿点
                     # Last point is still in the list of frontiers
-                    curr_index = idx # 记录索引
+                    curr_index = idx  # 记录索引
                     break
 
-            if curr_index is None: # 如果列表中没有上一个前沿点
+            if curr_index is None:  # 如果列表中没有上一个前沿点
                 # 查找与上一个前沿点在阈值范围内最近的点
                 closest_index = closest_point_within_threshold(sorted_pts, self._last_frontier, threshold=0.5)
-                # 
-                if closest_index != -1: # 如果存在
+                #
+                if closest_index != -1:  # 如果存在
                     # There is a point close to the last point pursued
                     # 如果存在，将这个最近索引作为当前索引
                     curr_index = closest_index
 
-            if curr_index is not None: # 如果列表中有上一个前沿点
-                curr_value = sorted_values[curr_index] # 取当前值的价值
-                if curr_value + 0.01 > self._last_value: # 如果当前价值不低于上一个前沿点的价值(允许有0.01的误差)
+            if curr_index is not None:  # 如果列表中有上一个前沿点
+                curr_value = sorted_values[curr_index]  # 取当前值的价值
+                if curr_value + 0.01 > self._last_value:  # 如果当前价值不低于上一个前沿点的价值(允许有0.01的误差)
                     # The last point pursued is still in the list of frontiers and its
                     # value is not much worse than self._last_value
-                    print("Sticking to last point.") # 继续选择该点
+                    print("Sticking to last point.")  # 继续选择该点
                     os.environ["DEBUG_INFO"] += "Sticking to last point. "
-                    best_frontier_idx = curr_index # 当前索引即为最佳
+                    best_frontier_idx = curr_index  # 当前索引即为最佳
 
         # If there is no last point pursued, then just take the best point, given that
         # it is not cyclic.
-        if best_frontier_idx is None: # 如果没有上一个前沿点或不符合条件
-            for idx, frontier in enumerate(sorted_pts): # 遍历排序后的点
-                cyclic = self._acyclic_enforcer.check_cyclic(robot_xy, frontier, top_two_values) # 检查该点是否会导致循环行为
-                if cyclic: # 如果会
+        if best_frontier_idx is None:  # 如果没有上一个前沿点或不符合条件
+            for idx, frontier in enumerate(sorted_pts):  # 遍历排序后的点
+                cyclic = self._acyclic_enforcer.check_cyclic(
+                    robot_xy, frontier, top_two_values
+                )  # 检查该点是否会导致循环行为
+                if cyclic:  # 如果会
                     print("Suppressed cyclic frontier.")
-                    continue # 跳过该点
-                best_frontier_idx = idx # 设置最佳前沿点索引为当前索引
+                    continue  # 跳过该点
+                best_frontier_idx = idx  # 设置最佳前沿点索引为当前索引
                 break
 
-        if best_frontier_idx is None: # 如果没有找到最佳前沿点
-            print("All frontiers are cyclic. Just choosing the closest one.") # 所有前沿点是循环的，就选最远的
+        if best_frontier_idx is None:  # 如果没有找到最佳前沿点
+            print("All frontiers are cyclic. Just choosing the closest one.")  # 所有前沿点是循环的，就选最远的
             os.environ["DEBUG_INFO"] += "All frontiers are cyclic. "
-            best_frontier_idx = max(  
-                range(len(frontiers)), 
+            best_frontier_idx = max(
+                range(len(frontiers)),
                 key=lambda i: np.linalg.norm(frontiers[i] - robot_xy),
             )
 
-        best_frontier = sorted_pts[best_frontier_idx] # 取得最佳前沿
-        best_value = sorted_values[best_frontier_idx] # 获取最佳前沿对应的价值
-        self._acyclic_enforcer.add_state_action(robot_xy, best_frontier, top_two_values) # 将选择记录到防循环器中
-        self._last_value = best_value # 更新上一个前沿点的价值 
-        self._last_frontier = best_frontier # 更新上一个前沿点的坐标
+        best_frontier = sorted_pts[best_frontier_idx]  # 取得最佳前沿
+        best_value = sorted_values[best_frontier_idx]  # 获取最佳前沿对应的价值
+        self._acyclic_enforcer.add_state_action(robot_xy, best_frontier, top_two_values)  # 将选择记录到防循环器中
+        self._last_value = best_value  # 更新上一个前沿点的价值
+        self._last_frontier = best_frontier  # 更新上一个前沿点的坐标
         os.environ["DEBUG_INFO"] += f" Best value: {best_value*100:.2f}%"
 
-        return best_frontier, best_value # 返回最佳前沿点坐标和价值
+        return best_frontier, best_value  # 返回最佳前沿点坐标和价值
 
     def _get_policy_info(self, detections: ObjectDetections) -> Dict[str, Any]:
         policy_info = super()._get_policy_info(detections)
@@ -216,40 +220,37 @@ class BaseITMPolicy(BaseObjectNavPolicy):
 
         return policy_info
 
-    def _update_value_map(self) -> None: # 更新价值图
-        all_rgb = [i[0] for i in self._observations_cache["value_map_rgbd"]] 
+    def _update_value_map(self) -> None:  # 更新价值图
+        all_rgb = [i[0] for i in self._observations_cache["value_map_rgbd"]]
         # 从self._observations_cache["value_map_rgbd"]这个列表中提取每个元素的第一个子元素（索引为0），并组成一个新的列表
-        
+
         # 检查是否使用YOLO-World
         if isinstance(self._itm, UltralyticsYOLOWorldITMClient):
             # DEBUG: 调试目标对象传递
             # 注释掉详细日志
             # print(f"🎯 ITM._update_value_map: _target_object = '{self._target_object}'")
             # print(f"📸 ITM._update_value_map: RGB count = {len(all_rgb)}")
-            
+
             # 对于YOLO-World，直接使用target_object
-            cosines = [
-                [self._itm.cosine(rgb, self._target_object)]
-                for rgb in all_rgb # 遍历所有RGB图像
-            ]
+            cosines = [[self._itm.cosine(rgb, self._target_object)] for rgb in all_rgb]  # 遍历所有RGB图像
         else:
             # 对于BLIP2，保持原有逻辑
             cosines = [
                 [
                     self._itm.cosine(
                         rgb,
-                        p.replace("target_object", self._target_object.replace("|", "/")), 
+                        p.replace("target_object", self._target_object.replace("|", "/")),
                         # 将目标物体名称中的"|"替换为"/"
                         # 将子提示中的"target_object"占位符换成当前目标对象名称
                     )
-                    for p in self._text_prompt.split(PROMPT_SEPARATOR) # 遍历得到的每个提示子字符串
+                    for p in self._text_prompt.split(PROMPT_SEPARATOR)  # 遍历得到的每个提示子字符串
                 ]
-                for rgb in all_rgb # 遍历所有RGB图像
+                for rgb in all_rgb  # 遍历所有RGB图像
             ]
         for cosine, (rgb, depth, tf, min_depth, max_depth, fov) in zip(
             cosines, self._observations_cache["value_map_rgbd"]  # 将两个可迭代对象配对组合
-        ): # 遍历所有cosines与观察rgbd数据
-            self._value_map.update_map(np.array(cosine), depth, tf, min_depth, max_depth, fov) # 更新价值图
+        ):  # 遍历所有cosines与观察rgbd数据
+            self._value_map.update_map(np.array(cosine), depth, tf, min_depth, max_depth, fov)  # 更新价值图
 
         self._value_map.update_agent_traj(
             self._observations_cache["robot_xy"],
@@ -258,12 +259,12 @@ class BaseITMPolicy(BaseObjectNavPolicy):
 
     def _sort_frontiers_by_value(
         self, observations: "TensorDict", frontiers: np.ndarray
-    ) -> Tuple[np.ndarray, List[float]]: 
-        '''抽象方法，由子类实现前沿点排序逻辑'''
+    ) -> Tuple[np.ndarray, List[float]]:
+        """抽象方法，由子类实现前沿点排序逻辑"""
         raise NotImplementedError
 
 
-class ITMPolicy(BaseITMPolicy):       
+class ITMPolicy(BaseITMPolicy):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._frontier_map: FrontierMap = FrontierMap()
@@ -277,7 +278,7 @@ class ITMPolicy(BaseITMPolicy):
         deterministic: bool = False,
     ) -> Tuple[Tensor, Tensor]:
         self._pre_step(observations, masks)
-        if self._visualize: # 如果可视化，更新价值图
+        if self._visualize:  # 如果可视化，更新价值图
             self._update_value_map()
         return super().act(observations, rnn_hidden_states, prev_actions, masks, deterministic)
 
@@ -285,11 +286,11 @@ class ITMPolicy(BaseITMPolicy):
         super()._reset()
         self._frontier_map.reset()
 
-    def _sort_frontiers_by_value( # 根据价值对前沿点进行排序
+    def _sort_frontiers_by_value(  # 根据价值对前沿点进行排序
         self, observations: "TensorDict", frontiers: np.ndarray
     ) -> Tuple[np.ndarray, List[float]]:
-        rgb = self._observations_cache["object_map_rgbd"][0][0] # 读取RGB图像
-        text = self._text_prompt.replace("target_object", self._target_object) # 处理语句
+        rgb = self._observations_cache["object_map_rgbd"][0][0]  # 读取RGB图像
+        text = self._text_prompt.replace("target_object", self._target_object)  # 处理语句
         self._frontier_map.update(frontiers, rgb, text)  # 更新边界地图
         return self._frontier_map.sort_waypoints()
 

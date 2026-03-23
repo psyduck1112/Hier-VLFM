@@ -92,13 +92,13 @@ def calculate_vfov(hfov: float, width: int, height: int) -> float:
 
 
 def within_fov_cone(
-    cone_origin: np.ndarray, # 锥形视野的原点，3D坐标
-    cone_angle: float, # 锥形的主方向rad
-    cone_fov: float,   # 视野的开口角度rad
+    cone_origin: np.ndarray,  # 锥形视野的原点，3D坐标
+    cone_angle: float,  # 锥形的主方向rad
+    cone_fov: float,  # 视野的开口角度rad
     cone_range: float,  # 视野的最大距离范围
     points: np.ndarray,  # 数组Nx3 or Nx4
 ) -> np.ndarray:
-    """ 检查一组3D点是否位于一个给定原点、角度、视场角和范围定义的锥形视野区域内
+    """检查一组3D点是否位于一个给定原点、角度、视场角和范围定义的锥形视野区域内
     Checks if points are within a cone of a given origin, angle, fov, and range.
 
     Args:
@@ -112,17 +112,19 @@ def within_fov_cone(
         np.ndarray: The subarray of points that are within the cone.
     """
     directions = points[:, :3] - cone_origin  # 计算每个点到原点的向量
-    dists = np.linalg.norm(directions, axis=1) # 计算距离
-    angles = np.arctan2(directions[:, 1], directions[:, 0]) # 计算每点xy平面上的方位角
-    angle_diffs = np.mod(angles - cone_angle + np.pi, 2 * np.pi) - np.pi 
+    dists = np.linalg.norm(directions, axis=1)  # 计算距离
+    angles = np.arctan2(directions[:, 1], directions[:, 0])  # 计算每点xy平面上的方位角
+    angle_diffs = np.mod(angles - cone_angle + np.pi, 2 * np.pi) - np.pi
     # 计算每个点的角度与主方向的差值
     # 将所有角度平移pi，确保范围0，2pi
     # 对2pi取模，再平移回-pi，pi范围
 
-    mask = np.logical_and(dists <= cone_range, np.abs(angle_diffs) <= cone_fov / 2) # 创建掩码，选中同时满足以下条件的点：
+    mask = np.logical_and(
+        dists <= cone_range, np.abs(angle_diffs) <= cone_fov / 2
+    )  # 创建掩码，选中同时满足以下条件的点：
     # 距离在有效范围内
     # 角度差在视场角的一半以内（即位于锥形内）
-    return points[mask] 
+    return points[mask]
 
 
 def convert_to_global_frame(agent_pos: np.ndarray, agent_yaw: float, local_pos: np.ndarray) -> np.ndarray:
@@ -152,7 +154,7 @@ def convert_to_global_frame(agent_pos: np.ndarray, agent_yaw: float, local_pos: 
 
 
 def extract_yaw(matrix: np.ndarray) -> float:
-    """ 从4x4矩阵中提取偏航角
+    """从4x4矩阵中提取偏航角
     Extract the yaw angle from a 4x4 transformation matrix.
 
     Args:
@@ -214,18 +216,18 @@ def closest_point_within_threshold(points_array: np.ndarray, target_point: np.nd
 
 def transform_points(transformation_matrix: np.ndarray, points: np.ndarray) -> np.ndarray:
     # Add a homogeneous coordinate of 1 to each point for matrix multiplication
-    #变换为齐次矩阵（加一列1），实现平移和旋转
+    # 变换为齐次矩阵（加一列1），实现平移和旋转
     homogeneous_points = np.hstack((points, np.ones((points.shape[0], 1))))
 
     # Apply the transformation matrix to the points 转置后矩阵乘法后转置回原形式
     transformed_points = np.dot(transformation_matrix, homogeneous_points.T).T
 
     # Remove the added homogeneous coordinate and divide by the last coordinate
-    #去除变换齐次时加入的列，除w分量（这里使用的是w为1的刚体变换）（全1列）
+    # 去除变换齐次时加入的列，除w分量（这里使用的是w为1的刚体变换）（全1列）
     return transformed_points[:, :3] / transformed_points[:, 3:]
 
 
-#生成点云
+# 生成点云
 def get_point_cloud(depth_image: np.ndarray, mask: np.ndarray, fx: float, fy: float) -> np.ndarray:
     """Calculates the 3D coordinates (x, y, z) of points in the depth image based on
     the horizontal field of view (HFOV), the image width and height, the depth values,
@@ -240,26 +242,28 @@ def get_point_cloud(depth_image: np.ndarray, mask: np.ndarray, fx: float, fy: fl
     Returns:
         np.ndarray: Array of 3D coordinates (x, y, z) of the points in the image plane.
 
-    x = (u - cx) * z / fx  
+    x = (u - cx) * z / fx
     y = (v - cy) * z / fy
     """
-    v, u = np.where(mask) #获取mask非0像素点，v行坐标，u列坐标
-    
+    v, u = np.where(mask)  # 获取mask非0像素点，v行坐标，u列坐标
+
     # 边界检查：确保坐标在图像范围内
     height, width = depth_image.shape
     valid_indices = (v >= 0) & (v < height) & (u >= 0) & (u < width)
     v = v[valid_indices]
     u = u[valid_indices]
-    
-    z = depth_image[v, u] #获取像素位置的深度值（距离相机的距离）
-    x = (u - depth_image.shape[1] // 2) * z / fx 
-    #depth_image.shape[1] // 2: 图像中心点的u坐标（cx）
-    #(u - cx): 像素坐标到图像中心的水平偏移
-    #乘以 z / fx: 将像素偏移转换为实际物理距离
+
+    z = depth_image[v, u]  # 获取像素位置的深度值（距离相机的距离）
+    x = (u - depth_image.shape[1] // 2) * z / fx
+    # depth_image.shape[1] // 2: 图像中心点的u坐标（cx）
+    # (u - cx): 像素坐标到图像中心的水平偏移
+    # 乘以 z / fx: 将像素偏移转换为实际物理距离
     y = (v - depth_image.shape[0] // 2) * z / fy
-    cloud = np.stack((z, -x, -y), axis=-1) #重新排列坐标轴，通常将相机前方设为Z轴正方向，右侧为X轴正方向，下方为Y轴正方向，负号是调整坐标系方向
-    #深度图像转化为点云 （深度图像是矩阵2D，点云为点的集合3D）
-    return cloud 
+    cloud = np.stack(
+        (z, -x, -y), axis=-1
+    )  # 重新排列坐标轴，通常将相机前方设为Z轴正方向，右侧为X轴正方向，下方为Y轴正方向，负号是调整坐标系方向
+    # 深度图像转化为点云 （深度图像是矩阵2D，点云为点的集合3D）
+    return cloud
 
 
 def get_fov(focal_length: float, image_height_or_width: int) -> float:

@@ -22,45 +22,45 @@ class ObjectDetections:
 
     def __init__(
         self,
-        boxes: torch.Tensor, # 边框张量
-        logits: torch.Tensor, # 置信度分数张量
-        phrases: List[str], # 标签字符串列表
-        image_source: Optional[np.ndarray], # 原始图像数组
-        fmt: str = "cxcywh", # 边界框格式，默认中心店＋宽高
+        boxes: torch.Tensor,  # 边框张量
+        logits: torch.Tensor,  # 置信度分数张量
+        phrases: List[str],  # 标签字符串列表
+        image_source: Optional[np.ndarray],  # 原始图像数组
+        fmt: str = "cxcywh",  # 边界框格式，默认中心店＋宽高
     ):
         self.image_source = image_source  # 保存原始图像引用
-        
-        if fmt != "xyxy": # 如果边框不是左上右下格式
-            self.boxes = box_convert(boxes=boxes, in_fmt=fmt, out_fmt="xyxy") # 转换
+
+        if fmt != "xyxy":  # 如果边框不是左上右下格式
+            self.boxes = box_convert(boxes=boxes, in_fmt=fmt, out_fmt="xyxy")  # 转换
         else:
             self.boxes = boxes
-        self.logits = logits 
+        self.logits = logits
         self.phrases = phrases
-        self._annotated_frame: Optional[np.ndarray] = None # 初始化标注图像为None，使用懒加载策略
+        self._annotated_frame: Optional[np.ndarray] = None  # 初始化标注图像为None，使用懒加载策略
 
     @property
     def annotated_frame(self) -> Optional[np.ndarray]:
-        '''
+        """
         根据信息绘制框和结果
-        '''        
-         # 属性装饰器，将方法转换为只读属性
-        if self._annotated_frame is None and self.image_source is not None: #
+        """
+        # 属性装饰器，将方法转换为只读属性
+        if self._annotated_frame is None and self.image_source is not None:  #
             # 如果还没有生成标注图像且有原始图像
-            self._annotated_frame = annotate( # 一张图片 3个通道 N个对象，每个对象一个检测框，c个可能类别，
-                #绘制出目标检测结果 ，框加检测结果
+            self._annotated_frame = annotate(  # 一张图片 3个通道 N个对象，每个对象一个检测框，c个可能类别，
+                # 绘制出目标检测结果 ，框加检测结果
                 image_source=self.image_source,
                 boxes=self.boxes,
                 logits=self.logits,
                 phrases=self.phrases,
             )
-             # 调用annotate函数生成标注图像
-        return self._annotated_frame # 返回标注图像
+            # 调用annotate函数生成标注图像
+        return self._annotated_frame  # 返回标注图像
 
     @property
     def num_detections(self) -> int:
         """返回检测数量
         Returns the number of detections."""
-        return len(self.phrases) # 通过phrases列表长度获取检测数量 
+        return len(self.phrases)  # 通过phrases列表长度获取检测数量
 
     def __repr__(self) -> str:
         """Print each detection's class, score, and box"""
@@ -81,7 +81,7 @@ class ObjectDetections:
         keep: torch.Tensor = torch.ge(self.logits, conf_thresh)  # >=
         self._filter(keep)
 
-    def filter_by_class(self, classes: List[str]) -> None: 
+    def filter_by_class(self, classes: List[str]) -> None:
         """根据指定的类别列表过滤检测结果
         Filters detections by class in-place.
 
@@ -95,13 +95,13 @@ class ObjectDetections:
     def _filter(self, keep: torch.Tensor) -> None:
         """Filters detections in-place."""
         # Return early if no detections to filter
-        if keep.all(): # 全部保留，直接返回
+        if keep.all():  # 全部保留，直接返回
             return
 
-        self.boxes = self.boxes[keep] # 使用布尔索引过滤边界框坐标
-        self.logits = self.logits[keep] # 过滤每个检测的置信度分数或逻辑值
-        self.phrases = [p for i, p in enumerate(self.phrases) if keep[i]] # 只保留对应keep[i]为True的短语
-        self._annotated_frame = None # 清除之前生成的标注图像
+        self.boxes = self.boxes[keep]  # 使用布尔索引过滤边界框坐标
+        self.logits = self.logits[keep]  # 过滤每个检测的置信度分数或逻辑值
+        self.phrases = [p for i, p in enumerate(self.phrases) if keep[i]]  # 只保留对应keep[i]为True的短语
+        self._annotated_frame = None  # 清除之前生成的标注图像
 
     def to_json(self) -> dict:
         """
@@ -139,16 +139,16 @@ class ObjectDetections:
         )
 
 
-def annotate( # 一张图片 3个通道 N个对象，每个对象一个检测框，C个可能类别
-    image_source: np.ndarray, # 一张图像，numpy 格式，形状一般是 (H, W, 3)
+def annotate(  # 一张图片 3个通道 N个对象，每个对象一个检测框，C个可能类别
+    image_source: np.ndarray,  # 一张图像，numpy 格式，形状一般是 (H, W, 3)
     boxes: torch.Tensor,  # 形状 (N, 4)，表示 N 个检测框，每个框用 (x1, y1, x2, y2) 表示左上角和右下角坐标
-    logits: torch.Tensor, # 形状 (N, C)，每个对象对应 C 个类别的置信度
+    logits: torch.Tensor,  # 形状 (N, C)，每个对象对应 C 个类别的置信度
     phrases: List[str],
 ) -> np.ndarray:
     """
     在一张图像上画出目标检测的结果
     Annotates an image with bounding boxes, class names, and scores.
-    
+
     Args:
         image_source (np.ndarray): Input image in numpy array format.
         boxes (torch.Tensor): A tensor of shape (N, 4) containing the bounding boxes
@@ -163,17 +163,17 @@ def annotate( # 一张图片 3个通道 N个对象，每个对象一个检测框
         np.ndarray: The original image with the bounding boxes, class names, and
             scores labeled on it.
     """
-    img = image_source.copy() 
+    img = image_source.copy()
 
     # Draw bounding boxes, class names, and scores on image
-    for box, prob, phrase in zip(boxes, logits, phrases): # 把每个目标的 (box, prob, phrase) 组合在一起
+    for box, prob, phrase in zip(boxes, logits, phrases):  # 把每个目标的 (box, prob, phrase) 组合在一起
         # Convert tensor to numpy array
-        box = box.detach().cpu().numpy() # 切断计算图， 放在cpu上(numpy只认cpu内存数据)，转换为numpy数组
-        prob = prob.detach().cpu().numpy() 
+        box = box.detach().cpu().numpy()  # 切断计算图， 放在cpu上(numpy只认cpu内存数据)，转换为numpy数组
+        prob = prob.detach().cpu().numpy()
 
         # If the box appears to be in normalized coordinates, de-normalize using the
         # image dimensions
-        if box.max() <= 1: # 如果最大坐标 ≤ 1，就认为是归一化的
+        if box.max() <= 1:  # 如果最大坐标 ≤ 1，就认为是归一化的
             # 把它还原到像素坐标
             box = box * np.array([img.shape[1], img.shape[0], img.shape[1], img.shape[0]])
             box = box.astype(int)
@@ -181,16 +181,16 @@ def annotate( # 一张图片 3个通道 N个对象，每个对象一个检测框
         # Draw bounding box
         point1 = (int(box[0]), int(box[1]))
         point2 = (int(box[2]), int(box[3]))
-        img = draw_bounding_box( # 在img上画矩形框并标注：
-        # point1 = 左上角坐标
-        # point2 = 右下角坐标
-        # class_name=phrase = 类别名称（比如 "dog"）
-        # score=prob.max() = 取该目标所有类别概率中的最大值（最有可能的类别），作为置信度分数
+        img = draw_bounding_box(  # 在img上画矩形框并标注：
+            # point1 = 左上角坐标
+            # point2 = 右下角坐标
+            # class_name=phrase = 类别名称（比如 "dog"）
+            # score=prob.max() = 取该目标所有类别概率中的最大值（最有可能的类别），作为置信度分数
             image=img,
             point1=point1,
             point2=point2,
             class_name=phrase,
-            score=prob.max(), 
+            score=prob.max(),
         )
 
     return img

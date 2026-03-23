@@ -4,7 +4,7 @@ import numpy as np
 from .general_utils import wrap_heading
 
 
-def get_two_farthest_points(source, cnt, agent_yaw): 
+def get_two_farthest_points(source, cnt, agent_yaw):
     """Returns the two points in the contour cnt that form the smallest and largest
     angles from the source point.
     返回轮廓线中与源点形成最小和最大角度的两个点"""
@@ -25,9 +25,7 @@ def get_two_farthest_points(source, cnt, agent_yaw):
 
 
 def vectorize_get_line_points(current_point, points, max_line_len):
-    angles = np.arctan2(
-        points[..., 1] - current_point[1], points[..., 0] - current_point[0]
-    )
+    angles = np.arctan2(points[..., 1] - current_point[1], points[..., 0] - current_point[0])
     endpoints = np.stack(
         (
             points[..., 0] + max_line_len * np.cos(angles),
@@ -46,56 +44,52 @@ def get_line_points(current_point, points, maxlen):
     points = np.repeat(points, 2, axis=0)
     diffs = current_point - points
     angles = np.arctan2(diffs[:, 1], diffs[:, 0])
-    end_points = current_point + maxlen * np.column_stack(
-        (np.cos(angles), np.sin(angles))
-    )
+    end_points = current_point + maxlen * np.column_stack((np.cos(angles), np.sin(angles)))
     line_points = np.concatenate((points, end_points), axis=1)
     line_points = np.array(line_points, dtype=np.int32)
     return line_points
 
 
 def reveal_fog_of_war(
-    top_down_map: np.ndarray, #二维数组，表示俯视地图
-    current_fog_of_war_mask: np.ndarray, #当前迷雾掩码
-    current_point: np.ndarray, #智能体当前坐标
-    current_angle: float, #智能体当前朝向rad
-    fov: float = 90, #视野角度（默认90度）
-    max_line_len: float = 100, #最大视线距离
-    enable_debug_visualization: bool = False, #是否启动调试可视化
+    top_down_map: np.ndarray,  # 二维数组，表示俯视地图
+    current_fog_of_war_mask: np.ndarray,  # 当前迷雾掩码
+    current_point: np.ndarray,  # 智能体当前坐标
+    current_angle: float,  # 智能体当前朝向rad
+    fov: float = 90,  # 视野角度（默认90度）
+    max_line_len: float = 100,  # 最大视线距离
+    enable_debug_visualization: bool = False,  # 是否启动调试可视化
 ) -> np.ndarray:
-    curr_pt_cv2 = current_point[::-1].astype(int) #(x,y)坐标转为(y,x)以适应OpenCV的坐标
-    
-    angle_cv2 = np.rad2deg(wrap_heading(-current_angle + np.pi / 2)) #确保弧度在0到2pi，转角度
-    
-    #创建扇形视野区域掩码
-    cone_mask = cv2.ellipse( #绘制椭圆，椭圆弧
-        np.zeros_like(top_down_map), #创建与地图大小相同的空白图像
-        curr_pt_cv2,                 #智能体位置
-        (int(max_line_len), int(max_line_len)), #椭圆半径
-        0,                          #旋转角度
-        angle_cv2 - fov / 2,        #起始角度
-        angle_cv2 + fov / 2,        #结束角度
-        1,                          #颜色值
-        -1,                         #填充整个扇形
+    curr_pt_cv2 = current_point[::-1].astype(int)  # (x,y)坐标转为(y,x)以适应OpenCV的坐标
+
+    angle_cv2 = np.rad2deg(wrap_heading(-current_angle + np.pi / 2))  # 确保弧度在0到2pi，转角度
+
+    # 创建扇形视野区域掩码
+    cone_mask = cv2.ellipse(  # 绘制椭圆，椭圆弧
+        np.zeros_like(top_down_map),  # 创建与地图大小相同的空白图像
+        curr_pt_cv2,  # 智能体位置
+        (int(max_line_len), int(max_line_len)),  # 椭圆半径
+        0,  # 旋转角度
+        angle_cv2 - fov / 2,  # 起始角度
+        angle_cv2 + fov / 2,  # 结束角度
+        1,  # 颜色值
+        -1,  # 填充整个扇形
     )
 
-    #创建掩码：扇形区域与障碍物区域的交集合
+    # 创建掩码：扇形区域与障碍物区域的交集合
     # Create a mask of pixels that are both in the cone and NOT in the top_down_map
-    obstacles_in_cone = cv2.bitwise_and(cone_mask, 1 - top_down_map) #按位进行与运算
+    obstacles_in_cone = cv2.bitwise_and(cone_mask, 1 - top_down_map)  # 按位进行与运算
 
     # Find the contours of the obstacles in the cone
     # 检测障碍物的轮廓
-    obstacle_contours, _ = cv2.findContours( 
-        obstacles_in_cone, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
-    )
-    #调试可视化部分
+    obstacle_contours, _ = cv2.findContours(obstacles_in_cone, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # 调试可视化部分
     if enable_debug_visualization:
-        #创建可视化地图
+        # 创建可视化地图
         vis_top_down_map = top_down_map * 255
         vis_top_down_map = cv2.cvtColor(vis_top_down_map, cv2.COLOR_GRAY2BGR)
-        vis_top_down_map[top_down_map > 0] = (60, 60, 60)   #障碍物显示为灰色
-        vis_top_down_map[top_down_map == 0] = (255, 255, 255) #可通行区域为白色
-        cv2.circle(vis_top_down_map, tuple(curr_pt_cv2), 3, (255, 192, 15), -1) #标记玩家位置
+        vis_top_down_map[top_down_map > 0] = (60, 60, 60)  # 障碍物显示为灰色
+        vis_top_down_map[top_down_map == 0] = (255, 255, 255)  # 可通行区域为白色
+        cv2.circle(vis_top_down_map, tuple(curr_pt_cv2), 3, (255, 192, 15), -1)  # 标记玩家位置
         cv2.imshow("vis_top_down_map", vis_top_down_map)
         cv2.waitKey(0)
         cv2.destroyWindow("vis_top_down_map")
@@ -115,7 +109,7 @@ def reveal_fog_of_war(
         cv2.waitKey(0)
         cv2.destroyWindow("vis_obstacles_mask")
 
-    #如果没有障碍物在扇形内，直接返回当前迷雾掩码
+    # 如果没有障碍物在扇形内，直接返回当前迷雾掩码
     if len(obstacle_contours) == 0:
         return current_fog_of_war_mask  # there were no obstacles in the cone
 
@@ -126,15 +120,17 @@ def reveal_fog_of_war(
     # 凹轮廓是指轮廓内部至少有一个凹陷的部分，存在至少一对点，它们之间的直线会穿过轮廓外部。
     points = []
     for cnt in obstacle_contours:
-        if cv2.isContourConvex(cnt): # 如果是凸轮廓
+        if cv2.isContourConvex(cnt):  # 如果是凸轮廓
             # 获取距离
-            pt1, pt2 = get_two_farthest_points(curr_pt_cv2, cnt, angle_cv2) #获得轮廓线中与原点形成最大最小角度的两个点
+            pt1, pt2 = get_two_farthest_points(
+                curr_pt_cv2, cnt, angle_cv2
+            )  # 获得轮廓线中与原点形成最大最小角度的两个点
             points.append(pt1.reshape(-1, 2))
             points.append(pt2.reshape(-1, 2))
-        else: #如果是凹轮廓
+        else:  # 如果是凹轮廓
             # Just add every point in the contour 加入所有点
-            points.append(cnt.reshape(-1, 2)) #
-    points = np.concatenate(points, axis=0) # 按行拼接
+            points.append(cnt.reshape(-1, 2))  #
+    points = np.concatenate(points, axis=0)  # 按行拼接
 
     # 创建可见区域掩码（扇形区域内的可通行区域）
     # Fragment the cone using obstacles and two lines per obstacle in the cone
@@ -147,15 +143,13 @@ def reveal_fog_of_war(
 
     # Identify the contour that is closest to the current position
     # 找出最终的可见区域轮廓
-    final_contours, _ = cv2.findContours(
-        visible_cone_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
-    )
+    final_contours, _ = cv2.findContours(visible_cone_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     # 找到包含智能体的最小距离轮廓（实际可见区域）
-    visible_area = None # 初始化最终选择的可见区域
+    visible_area = None  # 初始化最终选择的可见区域
     min_dist = np.inf  # 初始化最小距离为无限大
     for cnt in final_contours:
-        pt = tuple([int(i) for i in curr_pt_cv2]) # 智能体位置转换为整数元组格式，适应cv2要求
-        dist = abs(cv2.pointPolygonTest(cnt, pt, True)) # 计算点到轮廓的距离
+        pt = tuple([int(i) for i in curr_pt_cv2])  # 智能体位置转换为整数元组格式，适应cv2要求
+        dist = abs(cv2.pointPolygonTest(cnt, pt, True))  # 计算点到轮廓的距离
         # 选择距离最小的轮廓
         if dist < min_dist:
             min_dist = dist
@@ -170,9 +164,7 @@ def reveal_fog_of_war(
         cv2.destroyWindow("vis_points_mask")
 
         vis_lines_mask = vis_points_mask.copy()
-        cv2.polylines(
-            vis_lines_mask, line_points, isClosed=False, color=(0, 0, 255), thickness=2
-        )
+        cv2.polylines(vis_lines_mask, line_points, isClosed=False, color=(0, 0, 255), thickness=2)
         cv2.imshow("vis_lines_mask", vis_lines_mask)
         cv2.waitKey(0)
         cv2.destroyWindow("vis_lines_mask")
@@ -193,7 +185,7 @@ def reveal_fog_of_war(
         cv2.waitKey(0)
         cv2.destroyWindow("vis_final")
 
-    if min_dist > 3: #如果最小距离大于3
+    if min_dist > 3:  # 如果最小距离大于3
         return current_fog_of_war_mask  # 返回现有掩码 the closest contour was too far away
 
     # 在迷雾掩码上绘制可见区域
@@ -231,9 +223,7 @@ def visualize(
     viz[fog_mask > 0] = (127, 127, 127)
     cv2.circle(viz, agent_pos[::-1], agent_size, (255, 192, 15), -1)
 
-    heading_end_pt = (
-        agent_size * 1.4 * np.array([np.sin(agent_yaw), np.cos(agent_yaw)])
-    ) + agent_pos[::-1]
+    heading_end_pt = (agent_size * 1.4 * np.array([np.sin(agent_yaw), np.cos(agent_yaw)])) + agent_pos[::-1]
 
     # Draw a line from the current position showing the current_angle
     cv2.line(
@@ -285,9 +275,7 @@ if __name__ == "__main__":
         times.append(time.time() - t_start)
 
         if SHOW:
-            viz = visualize(
-                top_down_map, fog, current_point, current_angle, agent_radius
-            )
+            viz = visualize(top_down_map, fog, current_point, current_angle, agent_radius)
             cv2.imshow("viz", viz)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()

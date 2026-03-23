@@ -41,7 +41,7 @@ class JetRacerROSMixin:
         """初始化JetRacer算法混入，不进行任何ROS初始化"""
         # 兼容性处理：忽略旧版本的_skip_ros_init参数
         kwargs.pop("_skip_ros_init", None)
-        kwargs['sync_explored_areas'] = True
+        kwargs["sync_explored_areas"] = True
         super().__init__(*args, **kwargs)
         # 配置对象地图使用真实深度数据
         self._object_map.use_dbscan = True
@@ -73,20 +73,22 @@ class JetRacerROSMixin:
 
         # 调用父类策略获取动作
         parent_cls: ITMPolicyV2 = super()
-        action: Tensor = parent_cls.act(
-            observations, rnn_hidden_states, prev_actions, masks, deterministic
-        )[0]
+        action: Tensor = parent_cls.act(observations, rnn_hidden_states, prev_actions, masks, deterministic)[0]
         mode = self._policy_info.get("mode", "")
 
         # 判断动作格式：初始化阶段的连续动作 vs 导航阶段的离散动作
-        if (action.shape[-1] == 2 and action.numel() >= 2 and
-                not (action[0][0].item() in [0, 1, 2, 3] and action[0][1].item() in [0, 1, 2, 3])):
+        if (
+            action.shape[-1] == 2
+            and action.numel() >= 2
+            and not (action[0][0].item() in [0, 1, 2, 3] and action[0][1].item() in [0, 1, 2, 3])
+        ):
             # 初始化阶段的连续动作格式：[angular, linear]
             angular_vel = float(action[0][0].item())
             linear_vel = float(action[0][1].item())
         else:
             # 导航阶段的离散动作：映射为连续控制
             from vlfm.policy.utils.pointnav_policy import discrete_action_to_continuous
+
             discrete_action = action.flatten()[0] if action.numel() >= 2 else action
             linear_vel, angular_vel = discrete_action_to_continuous(discrete_action)
 
@@ -129,7 +131,7 @@ class JetRacerROSMixin:
 
     def _initialize(self) -> torch.Tensor:
         """JetRacer初始化动作 - 原地转圈观察环境"""
-        if not hasattr(self, '_init_steps'):
+        if not hasattr(self, "_init_steps"):
             self._init_steps = 0
 
         self._init_steps += 1
@@ -185,6 +187,7 @@ class JetRacerROSMixin:
 @dataclass
 class JetRacerROSConfig(DictConfig):
     """JetRacer配置类"""
+
     policy: VLFMConfig = VLFMConfig()
 
     # 运动限制
@@ -207,4 +210,5 @@ class JetRacerROSITMPolicyV2(JetRacerROSMixin, ITMPolicyV2):
     纯算法策略，结合JetRacer初始化逻辑和VLFM ITM导航算法
     ROS通信完全由外部VLFMJetRacerController负责（对应Habitat的Environment角色）
     """
+
     pass

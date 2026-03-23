@@ -37,17 +37,17 @@ class ValueMap(BaseMap):
     Generates a map representing how valuable explored regions of the environment
     are with respect to finding and navigating to the target object."""
 
-    _confidence_masks: Dict[Tuple[float, float], np.ndarray] = {} # 缓存置信度掩码
-    _camera_positions: List[np.ndarray] = [] 
+    _confidence_masks: Dict[Tuple[float, float], np.ndarray] = {}  # 缓存置信度掩码
+    _camera_positions: List[np.ndarray] = []
     _last_camera_yaw: float = 0.0
     _min_confidence: float = 0.25
-    _decision_threshold: float = 0.35 # 决策阈值
-    _map: np.ndarray # 从BaseMap继承的基础地图
+    _decision_threshold: float = 0.35  # 决策阈值
+    _map: np.ndarray  # 从BaseMap继承的基础地图
 
     def __init__(
         self,
-        value_channels: int, # 价值通道数
-        size: int = 1000, # 地图大小(像素)
+        value_channels: int,  # 价值通道数
+        size: int = 1000,  # 地图大小(像素)
         use_max_confidence: bool = True,
         fusion_type: str = "default",
         obstacle_map: Optional["ObstacleMap"] = None,  # type: ignore # noqa: F821
@@ -63,28 +63,28 @@ class ValueMap(BaseMap):
             obstacle_map: An optional obstacle map to use for overriding the occluded
                 areas of the FOV 可选 覆盖FOV区域
         """
-        if PLAYING: # 回放模式
-            size = 2000 # 将地图大小设置为2000像素
-        super().__init__(size) # 传入地图大小参数
-        self._value_map = np.zeros((size, size, value_channels), np.float32) # 创建一个三维的NumPy数组作为价值地图
-        self._value_channels = value_channels 
-        self._use_max_confidence = use_max_confidence 
-        self._fusion_type = fusion_type 
-        self._obstacle_map = obstacle_map 
-        if self._obstacle_map is not None: # 确保价值地图尺度与障碍物一致
+        if PLAYING:  # 回放模式
+            size = 2000  # 将地图大小设置为2000像素
+        super().__init__(size)  # 传入地图大小参数
+        self._value_map = np.zeros((size, size, value_channels), np.float32)  # 创建一个三维的NumPy数组作为价值地图
+        self._value_channels = value_channels
+        self._use_max_confidence = use_max_confidence
+        self._fusion_type = fusion_type
+        self._obstacle_map = obstacle_map
+        if self._obstacle_map is not None:  # 确保价值地图尺度与障碍物一致
             assert self._obstacle_map.pixels_per_meter == self.pixels_per_meter
             assert self._obstacle_map.size == self.size
-        if os.environ.get("MAP_FUSION_TYPE", "") != "": # 检查环境变量是否设置了地图融合类型
-            self._fusion_type = os.environ["MAP_FUSION_TYPE"] # 覆盖构造函数中传入的值
+        if os.environ.get("MAP_FUSION_TYPE", "") != "":  # 检查环境变量是否设置了地图融合类型
+            self._fusion_type = os.environ["MAP_FUSION_TYPE"]  # 覆盖构造函数中传入的值
 
-        if RECORDING: # 记录模式、
+        if RECORDING:  # 记录模式、
             # 删除已有路径，为新的腾空间
-            if osp.isdir(RECORDING_DIR): # 如果记录路径存在
+            if osp.isdir(RECORDING_DIR):  # 如果记录路径存在
                 warnings.warn(f"Recording directory {RECORDING_DIR} already exists. Deleting it.")
-                shutil.rmtree(RECORDING_DIR) # 递归删除整个目录，包括里面的所有文件和子文件夹。
+                shutil.rmtree(RECORDING_DIR)  # 递归删除整个目录，包括里面的所有文件和子文件夹。
             os.mkdir(RECORDING_DIR)
             # Dump all args to a file
-            #保存参数到文件
+            # 保存参数到文件
             with open(KWARGS_JSON, "w") as f:
                 json.dump(
                     {
@@ -104,12 +104,12 @@ class ValueMap(BaseMap):
 
     def update_map(
         self,
-        values: np.ndarray, # 价值数组
-        depth: np.ndarray, # 深度数组（已归一化）
-        tf_camera_to_episodic: np.ndarray, 
-        min_depth: float, # 最小深度m
-        max_depth: float, # 最大深度m
-        fov: float, #视野rad
+        values: np.ndarray,  # 价值数组
+        depth: np.ndarray,  # 深度数组（已归一化）
+        tf_camera_to_episodic: np.ndarray,
+        min_depth: float,  # 最小深度m
+        max_depth: float,  # 最大深度m
+        fov: float,  # 视野rad
     ) -> None:
         """Updates the value map with the given depth image, pose, and value to use.
 
@@ -166,7 +166,7 @@ class ValueMap(BaseMap):
             Tuple[np.ndarray, List[float]]: A tuple of the sorted waypoints and
                 their corresponding values.
         """
-        radius_px = int(radius * self.pixels_per_meter) #  计算半径的像素数
+        radius_px = int(radius * self.pixels_per_meter)  #  计算半径的像素数
 
         def get_value(point: np.ndarray) -> Union[float, Tuple[float, ...]]:
             # 从地图获取给给定点周围区域的评估值
@@ -185,7 +185,7 @@ class ValueMap(BaseMap):
                 return all_values[0]
             # 否则返回包含所有通道值的元组
             return tuple(all_values)
-        
+
         # 对每个航点计算价值
         values = [get_value(point) for point in waypoints]
 
@@ -248,28 +248,28 @@ class ValueMap(BaseMap):
             A mask of the visible portion of the FOV.
         """
         # Squeeze out the channel dimension if depth is a 3D array
-        if len(depth.shape) == 3: # 有的深度图可能是 (H, W, 1)
-            depth = depth.squeeze(2) # 去掉多余维度
+        if len(depth.shape) == 3:  # 有的深度图可能是 (H, W, 1)
+            depth = depth.squeeze(2)  # 去掉多余维度
         # Squash depth image into one row with the max depth value for each column
         # 每一列对应一个水平角度
-        depth_row = np.max(depth, axis=0) * (max_depth - min_depth) + min_depth # 提取每列最大深度，反归一化
+        depth_row = np.max(depth, axis=0) * (max_depth - min_depth) + min_depth  # 提取每列最大深度，反归一化
         # 每个像素列只保留一个「最远能看到的深度」
 
         # Create a linspace of the same length as the depth row from -fov/2 to fov/2
         # 创建角度序列
-        angles = np.linspace(-fov / 2, fov / 2, len(depth_row)) # 每个角度对应一列
+        angles = np.linspace(-fov / 2, fov / 2, len(depth_row))  # 每个角度对应一列
 
         # Assign each value in the row with an x, y coordinate depending on 'angles'
         # and the max depth value for that column
-        x = depth_row # x 表示深度距离（前方)
-        y = depth_row * np.tan(angles) # 表示左右偏移（用三角函数计算）
+        x = depth_row  # x 表示深度距离（前方)
+        y = depth_row * np.tan(angles)  # 表示左右偏移（用三角函数计算）
 
         # Get blank cone mask 获取置信度掩码
-        cone_mask = self._get_confidence_mask(fov, max_depth) # 创建一个锥形视野（FOV cone），中心区域置信度更高
+        cone_mask = self._get_confidence_mask(fov, max_depth)  # 创建一个锥形视野（FOV cone），中心区域置信度更高
 
         # Convert the x, y coordinates to pixel coordinates
         # 把 (x, y) 世界坐标转换到图像像素坐标
-        x = (x * self.pixels_per_meter + cone_mask.shape[0] / 2).astype(int) 
+        x = (x * self.pixels_per_meter + cone_mask.shape[0] / 2).astype(int)
         y = (y * self.pixels_per_meter + cone_mask.shape[1] / 2).astype(int)
 
         # Create a contour from the x, y coordinates, with the top left and right
@@ -277,9 +277,9 @@ class ValueMap(BaseMap):
         # 拼接轮廓点, 底部左/右点 (start, end), 中间是 (y, x) 轨迹
         last_row = cone_mask.shape[0] - 1
         last_col = cone_mask.shape[1] - 1
-        start = np.array([[0, last_col]]) #
+        start = np.array([[0, last_col]])  #
         end = np.array([[last_row, last_col]])
-        contour = np.concatenate((start, np.stack((y, x), axis=1), end), axis=0) # 拼接轮廓点
+        contour = np.concatenate((start, np.stack((y, x), axis=1), end), axis=0)  # 拼接轮廓点
 
         # Draw the contour onto the cone mask, in filled-in black
         visible_mask = cv2.drawContours(cone_mask, [contour], -1, 0, -1)  # 绘制可见边界
@@ -309,7 +309,7 @@ class ValueMap(BaseMap):
                 cv2.imshow("obstacle mask", vis)
                 cv2.waitKey(0)
 
-        return visible_mask # 返回可见掩码
+        return visible_mask  # 返回可见掩码
 
     def _localize_new_data(
         self,
@@ -319,14 +319,14 @@ class ValueMap(BaseMap):
         max_depth: float,
         fov: float,
     ) -> np.ndarray:
-        '''
+        """
         把相机观测得到的小地图“转换、旋转、定位”到全局地图坐标系中，得到可直接融合的局部地图
-        '''
+        """
         # Get new portion of the map
         curr_data = self._process_local_data(depth, fov, min_depth, max_depth)
 
         # Rotate this new data to match the camera's orientation
-        yaw = extract_yaw(tf_camera_to_episodic) # 根据偏航角旋转数据
+        yaw = extract_yaw(tf_camera_to_episodic)  # 根据偏航角旋转数据
         if PLAYING:
             if yaw > 0:
                 yaw = 0
@@ -355,11 +355,11 @@ class ValueMap(BaseMap):
     def _get_blank_cone_mask(self, fov: float, max_depth: float) -> np.ndarray:
         """
         生成一个不考虑任何障碍物的FOV视锥掩码
-        
+
         Args:
             fov: 视野角度（弧度）
             max_depth: 最大深度（米）
-            
+
         Returns:
             np.ndarray: 表示FOV视锥的二维数组，视锥区域为1，其他区域为0
         """
@@ -383,23 +383,23 @@ class ValueMap(BaseMap):
     def _get_confidence_mask(self, fov: float, max_depth: float) -> np.ndarray:
         """
         生成一个考虑中心区域权重更高的FOV视锥置信度掩码
-        
+
         Args:
             fov: 视野角度（弧度）
             max_depth: 最大深度（米）
-            
+
         Returns:
             np.ndarray: 浮点型二维数组，视锥内根据与中心的角度分布赋予置信度值
         """
         # 如果已生成过相同参数的置信度掩码，直接返回副本，避免重复计算
         if (fov, max_depth) in self._confidence_masks:
             return self._confidence_masks[(fov, max_depth)].copy()
-        
+
         # 生成基础的视锥掩码
         cone_mask = self._get_blank_cone_mask(fov, max_depth)
         # 创建与掩码相同形状的浮点型数组，用于存放置信度值
         adjusted_mask = np.zeros_like(cone_mask).astype(np.float32)
-        
+
         # 遍历掩码中的每一个像素，计算置信度值
         for row in range(adjusted_mask.shape[0]):
             for col in range(adjusted_mask.shape[1]):
@@ -410,14 +410,14 @@ class ValueMap(BaseMap):
                 angle = np.arctan2(vertical, horizontal)
                 # 将角度从[0, fov/2]映射到[0, π/2]，用于后续权重计算
                 angle = remap(angle, 0, fov / 2, 0, np.pi / 2)
-                
+
                 # 使用cos²(angle)作为置信度函数，越接近中心值越大，越接近边缘值越小
                 confidence = np.cos(angle) ** 2
                 # 将置信度值缩放到[self._min_confidence, 1]区间，避免边缘直接变为零
                 confidence = remap(confidence, 0, 1, self._min_confidence, 1)
                 # 将计算得到的置信度值存入掩码
                 adjusted_mask[row, col] = confidence
-        
+
         # 保证只有视场范围内的像素保留置信度，其他区域为0
         adjusted_mask = adjusted_mask * cone_mask
         # 保存结果到缓存字典，便于下次快速取用
@@ -428,9 +428,9 @@ class ValueMap(BaseMap):
     def _fuse_new_data(self, new_map: np.ndarray, values: np.ndarray) -> None:
         """
         将新观测数据融合到现有的置信度图和数值图中
-        
+
         融合方式可配置（替换、均值、加权平均、最大置信度），并考虑障碍物约束与置信度阈值
-        
+
         Args:
             new_map: 新的置信度图（同维度numpy数组，值在[0,1]范围内）
             values: 新观测对应的属性值（长度必须等于self._value_channels）
@@ -495,7 +495,7 @@ class ValueMap(BaseMap):
 
 
 def remap(value: float, from_low: float, from_high: float, to_low: float, to_high: float) -> float:
-    """ 区间缩放
+    """区间缩放
     Maps a value from one range to another.
 
     Args:

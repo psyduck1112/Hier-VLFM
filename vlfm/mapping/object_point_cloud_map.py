@@ -11,13 +11,13 @@ from vlfm.utils.geometry_utils import (
     extract_yaw,
     get_point_cloud,
     transform_points,
-    within_fov_cone, # 判断是否在视锥中
+    within_fov_cone,  # 判断是否在视锥中
 )
 
 
-class ObjectPointCloudMap: 
-    clouds: Dict[str, np.ndarray] = {} # 存储不同类别对象的点云字典
-    use_dbscan: bool = True # 是否使用DBSCAN聚类过滤点云
+class ObjectPointCloudMap:
+    clouds: Dict[str, np.ndarray] = {}  # 存储不同类别对象的点云字典
+    use_dbscan: bool = True  # 是否使用DBSCAN聚类过滤点云
 
     def __init__(self, erosion_size: float) -> None:
         self._erosion_size = erosion_size  # 腐蚀核大小
@@ -32,22 +32,22 @@ class ObjectPointCloudMap:
 
     def update_map(
         self,
-        object_name: str, # 对象类别名称
+        object_name: str,  # 对象类别名称
         depth_img: np.ndarray,  # 图像深度 已归一化
-        object_mask: np.ndarray, # 物体掩码
-        tf_camera_to_episodic: np.ndarray, # 相机到全局坐标系的变换矩阵
-        min_depth: float, # 最小有效深度 
-        max_depth: float, # 最大有效深度
+        object_mask: np.ndarray,  # 物体掩码
+        tf_camera_to_episodic: np.ndarray,  # 相机到全局坐标系的变换矩阵
+        min_depth: float,  # 最小有效深度
+        max_depth: float,  # 最大有效深度
         fx: float,  # 焦距
         fy: float,
     ) -> None:
         """Updates the object map with the latest information from the agent.
-            为偏移的图片全图加上标识符
-            对于非偏移图片，深度范围外的点加入标识符，方便后续处理
-            删除最近点距离智能体过近的图片
+        为偏移的图片全图加上标识符
+        对于非偏移图片，深度范围外的点加入标识符，方便后续处理
+        删除最近点距离智能体过近的图片
         """
-        local_cloud = self._extract_object_cloud(depth_img, object_mask, min_depth, max_depth, fx, fy) # 提取点云
-        
+        local_cloud = self._extract_object_cloud(depth_img, object_mask, min_depth, max_depth, fx, fy)  # 提取点云
+
         if len(local_cloud) == 0:
             return
 
@@ -55,55 +55,57 @@ class ObjectPointCloudMap:
         # assign a random number to the last column of its point cloud that can later
         # be used to identify which points came from the same detection.
 
-        if too_offset(object_mask): # 对于偏移严重的检测，给一个随机标识符
-            within_range = np.ones_like(local_cloud[:, 0]) * np.random.rand() 
+        if too_offset(object_mask):  # 对于偏移严重的检测，给一个随机标识符
+            within_range = np.ones_like(local_cloud[:, 0]) * np.random.rand()
         else:
             # Mark all points of local_cloud whose distance from the camera is too far
             # as being out of range
-            within_range = (local_cloud[:, 0] <= max_depth * 0.95) * 1.0  # 获取点云中所有x坐标(深度方向)，比较是否小于最大深度的95%，将bool转化为浮点数，5% margin
-            # 1.0 表示在有效范围内 All values of 1 in within_range will be considered within range, and all 
+            within_range = (
+                local_cloud[:, 0] <= max_depth * 0.95
+            ) * 1.0  # 获取点云中所有x坐标(深度方向)，比较是否小于最大深度的95%，将bool转化为浮点数，5% margin
+            # 1.0 表示在有效范围内 All values of 1 in within_range will be considered within range, and all
             # 0.0 表示超出有效范围 values of 0 will be considered out of range; these 0s need to be
             # assigned with a random number so that they can be identified later.
-            
-            within_range = within_range.astype(np.float32) # 转换32位浮点数
-            within_range[within_range == 0] = np.random.rand() # 每个超出范围的点生成一个随机数
- 
-        global_cloud = transform_points(tf_camera_to_episodic, local_cloud) # 转化到全局系
-        global_cloud = np.concatenate((global_cloud, within_range[:, None]), axis=1) # 添加范围识别列
- 
-        curr_position = tf_camera_to_episodic[:3, 3] # 当前位置
+
+            within_range = within_range.astype(np.float32)  # 转换32位浮点数
+            within_range[within_range == 0] = np.random.rand()  # 每个超出范围的点生成一个随机数
+
+        global_cloud = transform_points(tf_camera_to_episodic, local_cloud)  # 转化到全局系
+        global_cloud = np.concatenate((global_cloud, within_range[:, None]), axis=1)  # 添加范围识别列
+
+        curr_position = tf_camera_to_episodic[:3, 3]  # 当前位置
         closest_point = self._get_closest_point(global_cloud, curr_position)
         dist = np.linalg.norm(closest_point[:3] - curr_position)
-        if dist < 0.1: # 距离小于0.1米，认为是不可信检测，丢弃当前object的点云
+        if dist < 0.1:  # 距离小于0.1米，认为是不可信检测，丢弃当前object的点云
             # Object is too close to trust as a valid object
             return
 
         # 更新或添加点云数据（根据物体名字）
-        if object_name in self.clouds: 
+        if object_name in self.clouds:
             self.clouds[object_name] = np.concatenate((self.clouds[object_name], global_cloud), axis=0)
         else:
             self.clouds[object_name] = global_cloud
 
     def get_best_object(self, target_class: str, curr_position: np.ndarray) -> np.ndarray:
-        '''
-            在点云数据中为智能体选择最佳的目标点 获取点云-找最近点-判断目标稳定性（变化显著时更新）
-        '''
-        target_cloud = self.get_target_cloud(target_class) # 获取目标点云
+        """
+        在点云数据中为智能体选择最佳的目标点 获取点云-找最近点-判断目标稳定性（变化显著时更新）
+        """
+        target_cloud = self.get_target_cloud(target_class)  # 获取目标点云
 
-        closest_point_2d = self._get_closest_point(target_cloud, curr_position)[:2] # 寻找最近点，提取x,y维度数据
+        closest_point_2d = self._get_closest_point(target_cloud, curr_position)[:2]  # 寻找最近点，提取x,y维度数据
 
-        if self.last_target_coord is None: # 如果是第一次选择目标
-            self.last_target_coord = closest_point_2d # 直接使用找到的最近点
+        if self.last_target_coord is None:  # 如果是第一次选择目标
+            self.last_target_coord = closest_point_2d  # 直接使用找到的最近点
         else:
             # Do NOT update self.last_target_coord if:
             # 1. the closest point is only slightly different 最近点只有很小的变化
-            # 2. the closest point is a little different, but the agent is too far for 
+            # 2. the closest point is a little different, but the agent is too far for
             #    the difference to matter much 智能体距离太远
-            delta_dist = np.linalg.norm(closest_point_2d - self.last_target_coord) 
+            delta_dist = np.linalg.norm(closest_point_2d - self.last_target_coord)
             if delta_dist < 0.1:
                 # closest point is only slightly different
                 return self.last_target_coord
-            elif delta_dist < 0.5 and np.linalg.norm(curr_position - closest_point_2d) > 2.0: # 显著变化时更新
+            elif delta_dist < 0.5 and np.linalg.norm(curr_position - closest_point_2d) > 2.0:  # 显著变化时更新
                 # closest point is a little different, but the agent is too far for
                 # the difference to matter much
                 return self.last_target_coord
@@ -156,9 +158,9 @@ class ObjectPointCloudMap:
         if within_range_exists:
             # Filter out all points that are not within range
             target_cloud = target_cloud[target_cloud[:, -1] == 1]
-        return target_cloud # 返回目标点云
+        return target_cloud  # 返回目标点云
 
-    def _extract_object_cloud( # 提取物体点云
+    def _extract_object_cloud(  # 提取物体点云
         self,
         depth: np.ndarray,
         object_mask: np.ndarray,
@@ -167,24 +169,24 @@ class ObjectPointCloudMap:
         fx: float,
         fy: float,
     ) -> np.ndarray:
-        final_mask = object_mask * 255 # 转化为8位无符号整型
+        final_mask = object_mask * 255  # 转化为8位无符号整型
         final_mask = cv2.erode(final_mask, None, iterations=int(self._erosion_size))  # type: ignore 进行腐蚀
 
-        valid_depth = depth.copy() # 复制深度
+        valid_depth = depth.copy()  # 复制深度
         valid_depth[valid_depth == 0] = 1  # 将空洞设置为1，避免计算问题 set all holes (0) to just be far (1)
-        valid_depth = valid_depth * (max_depth - min_depth) + min_depth # 将归一化后的深度值反归一化
-        cloud = get_point_cloud(valid_depth, final_mask, fx, fy) # 生成点云
-        cloud = get_random_subarray(cloud, 5000) # 随机采样5000个点
+        valid_depth = valid_depth * (max_depth - min_depth) + min_depth  # 将归一化后的深度值反归一化
+        cloud = get_point_cloud(valid_depth, final_mask, fx, fy)  # 生成点云
+        cloud = get_random_subarray(cloud, 5000)  # 随机采样5000个点
         if self.use_dbscan:
-            cloud = open3d_dbscan_filtering(cloud) # 使用DBSCAN聚类算法过滤噪声点，保留主要物体点云簇
+            cloud = open3d_dbscan_filtering(cloud)  # 使用DBSCAN聚类算法过滤噪声点，保留主要物体点云簇
 
         return cloud
 
     def _get_closest_point(self, cloud: np.ndarray, curr_position: np.ndarray) -> np.ndarray:
         ndim = curr_position.shape[0]
-        '''
+        """
         寻找最近的点
-        '''
+        """
         if self.use_dbscan:
             # Return the point that is closest to curr_position, which is 2D
             closest_point = cloud[np.argmin(np.linalg.norm(cloud[:, :ndim] - curr_position, axis=1))]
@@ -288,7 +290,7 @@ def get_random_subarray(points: np.ndarray, size: int) -> np.ndarray:
 
 
 def too_offset(mask: np.ndarray) -> bool:
-    """ 判断对象检测是否过于偏离图像中心
+    """判断对象检测是否过于偏离图像中心
     This will return true if the entire bounding rectangle of the mask is either on the
     left or right third of the mask. This is used to determine if the object is too far
     to the side of the image to be a reliable detection.
@@ -300,12 +302,12 @@ def too_offset(mask: np.ndarray) -> bool:
         bool: True if the object is too offset, False otherwise.
     """
     # Find the bounding rectangle of the mask
-    x, y, w, h = cv2.boundingRect(mask) # 获取边界框
+    x, y, w, h = cv2.boundingRect(mask)  # 获取边界框
 
     # Calculate the thirds of the mask
-    third = mask.shape[1] // 3 # 计算三分之一宽度 
+    third = mask.shape[1] // 3  # 计算三分之一宽度
 
-    #检测是否在左右5%区域
+    # 检测是否在左右5%区域
     # Check if the entire bounding rectangle is in the left or right third of the mask
     if x + w <= third:
         # Check if the leftmost point is at the edge of the image

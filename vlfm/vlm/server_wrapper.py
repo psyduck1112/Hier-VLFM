@@ -73,10 +73,10 @@ def send_request(url: str, **kwargs: Any) -> dict:
     response = {}
     for attempt in range(10):
         try:
-            response = _send_request(url, **kwargs) #调用实际的请求发送函数
+            response = _send_request(url, **kwargs)  # 调用实际的请求发送函数
             break
-        except Exception as e: # 捕获任何异常
-            if attempt == 9:  #已经进行过9次尝试（剩最后一次））
+        except Exception as e:  # 捕获任何异常
+            if attempt == 9:  # 已经进行过9次尝试（剩最后一次））
                 print(e)
                 exit()
                 # 打印错误信息并退出程序

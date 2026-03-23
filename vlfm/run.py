@@ -30,17 +30,19 @@ import vlfm.utils.vlfm_trainer  # noqa: F401
 class HabitatConfigPlugin(SearchPathPlugin):
     """
     自定义配置搜索路径插件，用于添加Habitat配置文件的搜索路径
-    
+
     该插件通过继承SearchPathPlugin类，实现将Habitat配置文件路径添加到Hydra配置搜索路径中，
     使得Hydra能够在指定路径中查找配置文件。
     """
+
     def manipulate_search_path(self, search_path: ConfigSearchPath) -> None:
         search_path.append(provider="habitat", path="config/")
         """
         操作配置搜索路径，添加Habitat配置路径
         参数:
             search_path (ConfigSearchPath): 配置搜索路径对象，用于管理配置文件的搜索路径
-        """   
+        """
+
 
 register_hydra_plugin(HabitatConfigPlugin)
 
@@ -70,7 +72,9 @@ def main(cfg: DictConfig) -> None:
         except KeyError:
             pass
     # 根据配置决定执行评估还是训练任务
-    execute_exp(cfg, "eval" if cfg.habitat_baselines.evaluate else "train") # 重点 # DictConfig类重写了getattr方法，使得可以.语法访问嵌套配置项，就像访问对象属性一样
+    execute_exp(
+        cfg, "eval" if cfg.habitat_baselines.evaluate else "train"
+    )  # 重点 # DictConfig类重写了getattr方法，使得可以.语法访问嵌套配置项，就像访问对象属性一样
 
 
 if __name__ == "__main__":

@@ -37,6 +37,7 @@ from habitat_baselines.utils.info_dict import (
 )
 from omegaconf import OmegaConf
 
+
 # 它会过滤 info 字典，移除所有值是列表的项，然后把结果交给 Habitat自带的标准函数
 def extract_scalars_from_info(info: Dict[str, Any]) -> Dict[str, float]:
     info_filtered = {k: v for k, v in info.items() if not isinstance(v, list)}
@@ -64,20 +65,20 @@ class VLFMTrainer(PPOTrainer):
         Returns:
             None
         """
-        if self._is_distributed: # 如果启用分布式模式
+        if self._is_distributed:  # 如果启用分布式模式
             raise RuntimeError("Evaluation does not support distributed mode")
 
         # Some configurations require not to load the checkpoint, like when using
         # a hierarchial policy
         # 加载检查点
-        if self.config.habitat_baselines.eval.should_load_ckpt: # 如果需要加载检查点中的模型权重
+        if self.config.habitat_baselines.eval.should_load_ckpt:  # 如果需要加载检查点中的模型权重
             # map_location="cpu" is almost always better than mapping to a CUDA device.
             # 从检查点文件加载模型权重
             ckpt_dict = self.load_checkpoint(checkpoint_path, map_location="cpu")
-            step_id = ckpt_dict["extra_state"]["step"] # 读取训练步数
+            step_id = ckpt_dict["extra_state"]["step"]  # 读取训练步数
             print(step_id)
         else:
-            ckpt_dict = {"config": None} # 不加载检查点时，创建一个空字典
+            ckpt_dict = {"config": None}  # 不加载检查点时，创建一个空字典
         # 选择并读取配置
         config = self._get_resume_state_config_or_new_config(ckpt_dict["config"])
 
@@ -91,14 +92,14 @@ class VLFMTrainer(PPOTrainer):
             # 1. 获取智能体的传感器配置
             agent_config = get_agent_config(config.habitat.simulator)
             agent_sensors = agent_config.sim_sensors  # 获取现有的传感器列表
-            
+
             # 2. 获取评估时需要的额外传感器（如第三人称视角、鸟瞰图等）
             extra_sensors = config.habitat_baselines.eval.extra_sim_sensors
-            
+
             # 3. 将额外传感器添加到智能体传感器配置中
             with read_write(agent_sensors):  # 启用配置修改模式
                 agent_sensors.update(extra_sensors)  # 合并传感器配置
-            
+
             # 4. 更新环境配置，确保新传感器的数据能被正确处理
             with read_write(config):  # 启用配置修改模式
                 # 确保所有额外的传感器视图都被包含在observation keys中
@@ -108,7 +109,7 @@ class VLFMTrainer(PPOTrainer):
                         if render_view.uuid not in config.habitat.gym.obs_keys:
                             # 如果不在，则添加到观察键列表，确保数据能被收集
                             config.habitat.gym.obs_keys.append(render_view.uuid)
-                
+
                 # 启用调试渲染模式，生成高质量的视觉输出用于视频录制
                 config.habitat.simulator.debug_render = True
 
@@ -120,15 +121,15 @@ class VLFMTrainer(PPOTrainer):
         # 环境初始化
         self._init_envs(config, is_eval=True)
 
-        #创建agent
-        self._agent = self._create_agent(None) # SingleAgentAccessMgr实例,初始化时创建了 self._agent._actor_critic实例
+        # 创建agent
+        self._agent = self._create_agent(None)  # SingleAgentAccessMgr实例,初始化时创建了 self._agent._actor_critic实例
         action_shape, discrete_actions = get_action_space_info(self._agent.policy_action_space)
 
         if self._agent.actor_critic.should_load_agent_state:
-            self._agent.load_state_dict(ckpt_dict) # 加载模型状态
+            self._agent.load_state_dict(ckpt_dict)  # 加载模型状态
 
         observations = self.envs.reset()
-        batch = batch_obs(observations, device=self.device) 
+        batch = batch_obs(observations, device=self.device)
         batch = apply_obs_transforms_batch(batch, self.obs_transforms)  # type: ignore
 
         # 初始化当前episode奖励、先前动作存储、未完成掩码
@@ -156,7 +157,7 @@ class VLFMTrainer(PPOTrainer):
         # 存储每个情节的统计信息与评估次数
         stats_episodes: Dict[Any, Any] = {}  # dict of dicts that stores stats per episode
         ep_eval_count: Dict[Any, int] = defaultdict(lambda: 0)
-        
+
         # 初始化RGB帧存储，用于视频录制 如果启用了视频选项，则创建视频目录
         rgb_frames: List[List[np.ndarray]] = [[] for _ in range(self.config.habitat_baselines.num_environments)]
         if len(self.config.habitat_baselines.eval.video_option) > 0:
@@ -180,7 +181,7 @@ class VLFMTrainer(PPOTrainer):
 
         # 初始化进度条和设置评估模式
         pbar = tqdm.tqdm(total=number_of_eval_episodes * evals_per_ep)
-        self._agent.eval() # 返回的是self._agent._actor_critic.eval()
+        self._agent.eval()  # 返回的是self._agent._actor_critic.eval()
 
         # 导入可视化工具
         from vlfm.utils.habitat_visualizer import HabitatVis
@@ -194,7 +195,7 @@ class VLFMTrainer(PPOTrainer):
             current_episodes_info = self.envs.current_episodes()
 
             # 在推理模式下执行动作预测
-            with inference_mode(): # 使用推理模式，不计算梯度
+            with inference_mode():  # 使用推理模式，不计算梯度
                 # 获取动作数据
                 action_data = self._agent.actor_critic.act(
                     batch,

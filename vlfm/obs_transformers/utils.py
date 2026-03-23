@@ -14,7 +14,7 @@ def image_resize(
     interpolation_mode: str = "area",
 ) -> torch.Tensor:
     """Resizes an img.
-    确保输入是张量，并统一成 batch 格式 
+    确保输入是张量，并统一成 batch 格式
     如果输入是 channels_last （HWC/NHWC 格式），就转成 channels_first，方便 PyTorch 处理
     用插值方法缩放到目标大小。
     如果需要，再把通道顺序转换回 channels_last
