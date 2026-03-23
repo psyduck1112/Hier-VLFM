@@ -1,4 +1,5 @@
 # Copyright (c) 2023 Boston Dynamics AI Institute LLC. All rights reserved.
+# Modifications Copyright (c) 2026 Yikang.
 
 # 导入必要的库和模块
 import numpy as np  # 数值计算库，用于处理数组和数学运算

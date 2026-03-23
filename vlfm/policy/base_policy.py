@@ -1,4 +1,5 @@
 # Copyright (c) 2023 Boston Dynamics AI Institute LLC. All rights reserved.
+# Modifications Copyright (c) 2026 Yikang.
 '''
 这个文件实现了一个极简的、可以被 habitat-baselines （PPO trainer）识别并用于评估的“占位”策略（dummy policy）。
 目的不是训练一个真实的智能体，而是满足基类/框架对策略对象的接口要求

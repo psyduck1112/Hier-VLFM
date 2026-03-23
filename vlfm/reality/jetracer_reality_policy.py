@@ -1,4 +1,5 @@
 # Copyright (c) 2023 Boston Dynamics AI Institute LLC. All rights reserved.
+# Modifications Copyright (c) 2026 Yikang.
 
 # JetRacer Reality Policy - 基于 reality_policies 为 JetRacer 专门设计
 

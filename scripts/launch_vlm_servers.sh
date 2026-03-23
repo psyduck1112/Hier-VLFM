@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Copyright [2023] Boston Dynamics AI Institute, Inc.
+# Modifications Copyright (c) 2026 Yikang.
 
 # Ensure you have 'export VLFM_PYTHON=<PATH_TO_PYTHON>' in your .bashrc, where
 # <PATH_TO_PYTHON> is the path to the python executable for your conda env

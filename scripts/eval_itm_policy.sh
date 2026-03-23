@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Copyright [2023] Boston Dynamics AI Institute, Inc.
+# Modifications Copyright (c) 2026 Yikang.
 
 # 使用Hydra框架来运行shell命令
 python -um vlfm.run \

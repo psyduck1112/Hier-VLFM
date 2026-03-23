@@ -1,4 +1,5 @@
 # Copyright (c) 2023 Boston Dynamics AI Institute LLC. All rights reserved.
+# Modifications Copyright (c) 2026 Yikang.
 
 # 导入必要的模块
 from dataclasses import dataclass  # 用于创建数据类

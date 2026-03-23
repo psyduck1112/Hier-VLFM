@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Copyright [2023] Boston Dynamics AI Institute, Inc.
+# Modifications Copyright (c) 2026 Yikang.
 
 python -um zsos.run \
   --config-name=objectnav/ddppo_objectnav_hm3d.yaml \
