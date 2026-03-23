@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 JetRacer VLFM可视化器
 参考VLFM的HabitatVis和BaseObjectNavPolicy可视化架构
