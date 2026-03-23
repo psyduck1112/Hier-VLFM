@@ -1,0 +1,109 @@
+# VLFM JetRacer ROS配置文件
+
+# 策略配置
+policy:
+  # 图像处理配置
+  obs_transform: center_crop_resize
+  rgb_image_size: 224
+  depth_image_size: 256
+  normalize_depth: true
+  
+  # VLM检测阈值
+  coco_threshold: 0.8        # YOLO COCO对象检测阈值
+  non_coco_threshold: 0.4    # GroundingDINO非COCO对象检测阈值
+  
+  # 地图配置
+  spatial_sample_rate: 1
+  object_map_erosion_size: 3
+  
+  # 前沿检测配置
+  frontier_dilate_radius: 3
+  frontier_sample_count: 50
+
+# JetRacer运动配置
+robot:
+  max_linear_velocity: 0.3   # 最大线性速度 (m/s)
+  max_angular_velocity: 0.8  # 最大角速度 (rad/s)
+  
+  # 安全配置
+  emergency_stop_distance: 0.5  # 紧急停止距离 (m)
+  min_obstacle_distance: 0.3    # 最小障碍物距离 (m)
+
+# RealSense D435i相机配置
+camera:
+  # 内参数 (根据实际标定调整)
+  fx: 616.0
+  fy: 616.0
+  cx: 320.0
+  cy: 240.0
+  
+  # 图像尺寸
+  width: 640
+  height: 480
+  
+  # 深度配置
+  depth_scale: 0.001      # 深度缩放因子 (mm -> m)
+  min_depth: 0.1          # 最小有效深度 (m)
+  max_depth: 3.0          # 最大有效深度 (m)
+
+# ROS话题配置
+ros:
+  # 订阅话题
+  topics:
+    rgb_image: "/camera/color/image_raw"
+    depth_image: "/camera/aligned_depth_to_color/image_raw"
+    imu: "/camera/imu"
+    odom: "/odom"
+  
+  # 发布话题
+  cmd_vel: "/cmd_vel"
+  
+  # 消息队列大小
+  queue_size: 1
+  
+  # 数据超时时间 (秒)
+  data_timeout: 1.0
+
+# 导航配置
+navigation:
+  # 目标对象 (可在运行时覆盖)
+  default_target: "chair"
+  
+  # 导航参数
+  goal_radius: 0.5          # 目标半径 (m)
+  exploration_timeout: 300   # 探索超时时间 (秒)
+  
+  # 地图配置
+  map_size: 1000            # 地图大小 (像素)
+  map_resolution: 0.05      # 地图分辨率 (m/像素)
+
+# VLM服务器配置
+vlm:
+  # 服务器地址
+  grounding_dino_port: 12181
+  blip2itm_port: 12182
+  sam_port: 12183
+  yolov7_port: 12184
+  
+  # 超时配置
+  request_timeout: 5.0      # 请求超时 (秒)
+  
+  # 批处理配置
+  batch_size: 1
+
+# 调试配置
+debug:
+  enable_visualization: false
+  save_trajectories: false
+  log_sensor_data: false
+  
+  # 可视化配置
+  show_frontiers: true
+  show_object_detections: true
+  show_value_map: true
+
+# 日志配置
+logging:
+  level: "info"             # debug, info, warn, error
+  log_to_file: false
+  log_file_path: "/tmp/vlfm_jetracer.log"
